@@ -1001,6 +1001,60 @@ class Builder
     }
 
     /**
+     * Add a basic where clause built from key pairs in $idList to the query.
+     *
+     * @param array   $fields
+     * @param array[] $idList
+     * @param bool    $not
+     *
+     * @return Builder
+     */
+    public function whereList($fields, $idList, $not = false)
+    {
+        //makes a where statement that looks like:
+        //( (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) ... )
+        $makeWhere = function ($query) use ($fields, $idList, $not) {
+            /**
+             * @var  Builder $query
+             */
+
+            foreach ($idList as $values) {
+
+                $fn = function (
+                    /** @var  Builder $query */
+                  $query
+                ) use ($fields, $values, $not) {
+                    foreach ($fields as $key => $field) {
+
+                        if (!isset($values[ $key ])) {
+                            throw new \RuntimeException('key field mismatch');
+                        }
+
+                        $query = $query->where($field, $not ? '!=' : '=', $values[ $key ], $not ? 'and' : 'or');
+                    }
+                };
+                $query->orWhere($fn);
+            }
+        };
+
+        return $this->where($makeWhere);
+    }
+
+    /**
+     * Add a basic where clause built from key pairs not in $idList to the query.
+     *
+     * @param array   $fields
+     * @param array[] $idList
+     *
+     * @return Builder
+     */
+    public function whereNotList($fields, $idList)
+    {
+
+        return $this->whereList($fields, $idList, true);
+    }
+
+    /**
      * Add a "where null" clause to the query.
      *
      * @param  string  $column
@@ -1287,12 +1341,25 @@ class Builder
      * @param  string  $direction
      * @return $this
      */
-    public function orderBy($column, $direction = 'asc')
+    public function orderBy($column, $direction = 'asc', $prepend = false)
     {
-        $this->{$this->unions ? 'unionOrders' : 'orders'}[] = [
-            'column' => $column,
-            'direction' => strtolower($direction) == 'asc' ? 'asc' : 'desc',
-        ];
+        $type      = $this->unions ? 'unionOrders' : 'orders';
+        $direction = strtolower($direction) == 'asc' ? 'asc' : 'desc';
+        $columns   = (array)$column;
+
+        foreach ($columns as $column) {
+            $orderData = [
+              'column'    => $column,
+              'direction' => $direction,
+            ];
+
+            if ($prepend) {
+                array_unshift($this->{$type}, $orderData);
+            }
+            else {
+                $this->{$type}[] = $orderData;
+            }
+        }
 
         return $this;
     }

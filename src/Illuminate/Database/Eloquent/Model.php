@@ -281,7 +281,8 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function __construct(array $attributes = [])
     {
-        if (is_array($this->getKeyName())) {
+        //composite keys cant be incrementing
+        if ($this->incrementing && count((array) $this->getKeyName()) > 1) {
             $this->incrementing = false;
         }
 
@@ -1698,7 +1699,9 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function setKeysForSaveQuery(Builder $query)
     {
-        $query->where($this->getKeyName(), '=', $this->getKeyForSaveQuery());
+        foreach ($this->getKeyForSaveQuery() as $key => $val) {
+            $query->where($key, '=', $val);
+        }
 
         return $query;
     }
@@ -1706,15 +1709,18 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the primary key value for a save query.
      *
-     * @return mixed
+     * @return array
      */
     protected function getKeyForSaveQuery()
     {
-        if (isset($this->original[$this->getKeyName()])) {
-            return $this->original[$this->getKeyName()];
+        $keys   = (array)$this->getKeyName();
+        $result = [];
+
+        foreach ($keys as $keyname) {
+            $result[ $keyname ] = isset($this->original[ $keyname ]) ? $this->original[ $keyname ] : $this->getAttribute($keyname);
         }
 
-        return $this->getAttribute($this->getKeyName());
+        return $result;
     }
 
     /**
@@ -2002,7 +2008,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         return count($keys) > 1 ? array_map($fn, array_combine($keys, $keys)) : $fn(reset($keys));
     }
-    
+
     /**
      * Get the value of the model's route key.
      *

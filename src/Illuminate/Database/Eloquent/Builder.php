@@ -158,6 +158,22 @@ class Builder
      */
     public function find($id, $columns = ['*'])
     {
+        // Check for composite keys
+        $keys = (array) $this->model->getQualifiedKeyName();
+
+        if (count($keys) > 1){
+
+            if(is_array(reset($id))) {
+                $this->query->whereList($keys, $id);
+
+                return $this->get($columns);
+            }
+
+            $this->query->whereList($keys, [$id]);
+
+            return $this->first();
+        }
+
         if (is_array($id)) {
             return $this->findMany($id, $columns);
         }
@@ -180,7 +196,14 @@ class Builder
             return $this->model->newCollection();
         }
 
-        $this->query->whereIn($this->model->getQualifiedKeyName(), $ids);
+        // Check for composite keys
+        $keys = (array) $this->model->getQualifiedKeyName();
+        if (count($keys) > 1){
+            $this->query->whereList($keys, $ids)->get($columns);
+        }
+        else{
+            $this->query->whereIn(reset($keys), $ids);
+        }
 
         return $this->get($columns);
     }
