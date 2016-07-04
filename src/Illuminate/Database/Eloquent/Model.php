@@ -281,6 +281,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function __construct(array $attributes = [])
     {
+        if (is_array($this->getKeyName())) {
+            $this->incrementing = false;
+        }
+
         $this->bootIfNotBooted();
 
         $this->syncOriginal();
@@ -1943,7 +1947,12 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getKey()
     {
-        return $this->getAttribute($this->getKeyName());
+        $keys = (array)$this->getKeyName();
+        $fn   = function ($keyname) {
+            return $this->getAttribute($keyname);
+        };
+
+        return count($keys) > 1 ? array_map($fn, array_combine($keys, $keys)) : $fn(reset($keys));
     }
 
     /**
@@ -1986,9 +1995,14 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getQualifiedKeyName()
     {
-        return $this->getTable().'.'.$this->getKeyName();
-    }
+        $keys = (array)$this->getKeyName();
+        $fn   = function ($keyname) {
+            return $this->getTable().'.'.$keyname;
+        };
 
+        return count($keys) > 1 ? array_map($fn, array_combine($keys, $keys)) : $fn(reset($keys));
+    }
+    
     /**
      * Get the value of the model's route key.
      *
