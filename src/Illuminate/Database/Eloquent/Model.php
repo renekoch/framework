@@ -2056,13 +2056,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getKeyName()
     {
-        return $this->primaryKey;
+        return (array)$this->primaryKey;
     }
 
     /**
      * Set the primary key for the model.
      *
-     * @param  string  $key
+     * @param  string[]  $key
      * @return $this
      */
     public function setKeyName($key)
@@ -2079,12 +2079,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getQualifiedKeyName()
     {
-        $keys = (array)$this->getKeyName();
-        $fn   = function ($keyname) {
-            return $this->getTable().'.'.$keyname;
-        };
+        $table = $this->getTable() . '.';
+        $list = [];
+        foreach($this->getKeyName() as $keyname){
+            $list[$keyname] = $table . $keyname;
+        }
 
-        return array_map($fn, array_combine($keys, $keys));
+        return $list;
     }
 
     /**
@@ -2183,11 +2184,8 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function getForeignKey()
     {
         $basename = Str::snake(class_basename($this)) . '_';
-
-        $primKeys = (array)$this->getKeyName();
         $keys = [];
-
-        foreach($primKeys as $keyname){
+        foreach($this->getKeyName() as $keyname){
             $keys[$keyname] = $basename . $keyname;
         }
 
@@ -2881,9 +2879,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function getCasts()
     {
         if ($this->getIncrementing()) {
-            return array_merge([
-                $this->getKeyName() => $this->keyType,
-            ], $this->casts);
+
+            $keys = $this->getKeyName();
+            $keyname = reset($keys);
+
+            if (!isset($this->casts[$keyname])){
+                $this->casts[$keyname] = $this->keyType;
+            }
         }
 
         return $this->casts;
