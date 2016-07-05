@@ -816,11 +816,9 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
             $relation = $caller['function'];
         }
 
-        $keys = [];
+        $keys = $foreignKey;
         $base = Str::snake($relation) . '_';
-
         if (is_string($foreignKey)){
-
             //if no $otherKey try to guess the most likely key
             if (!$otherKey){
                 $key = str_replace($base, '', $foreignKey);
@@ -828,14 +826,14 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
                 $otherKey = isset($otherKey[$key]) ? $otherKey[$key] : reset($otherKey);
             }
 
-            $keys[$foreignKey] = $otherKey;
+            $keys = [$foreignKey => $otherKey];
         }
 
         // If no foreign key was supplied, we can use a backtrace to guess the proper
         // foreign key name by using the name of the relationship function, which
         // when combined with $otherKey should conventionally match the columns.
         if (is_null($foreignKey)) {
-
+            $keys = [];
             $otherKey = (array)($otherKey ? : $instance->getKeyName());
             foreach($otherKey as $keyname){
                 $keys[$base . $keyname] = $keyname;
