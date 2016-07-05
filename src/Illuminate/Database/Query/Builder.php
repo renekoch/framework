@@ -1040,7 +1040,7 @@ class Builder
                             throw new \RuntimeException('key field mismatch');
                         }
 
-                        $query = $query->where($field, $not ? '!=' : '=', $values[ $key ], $not ? 'and' : 'or');
+                        $query = $query->where($field, $not ? '!=' : '=', $values[ $key ], $not ? 'or' : 'and');
                     }
                 };
                 $query->orWhere($fn);
