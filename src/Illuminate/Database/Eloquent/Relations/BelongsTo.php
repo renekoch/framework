@@ -12,16 +12,23 @@ class BelongsTo extends Relation
     /**
      * The foreign key of the parent model.
      *
-     * @var string
+     * @var string[]
      */
     protected $foreignKey;
 
     /**
      * The associated key on the parent model.
      *
-     * @var string
+     * @var string[]
      */
     protected $otherKey;
+
+    /**
+     * The associated key on the parent model.
+     *
+     * @var string[]
+     */
+    protected $constraintKeys;
 
     /**
      * The name of the relationship.
@@ -42,16 +49,14 @@ class BelongsTo extends Relation
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
+     * @param  string[]  $constraintKeys
      * @param  string  $relation
      * @return void
      */
-    public function __construct(Builder $query, Model $parent, $foreignKey, $otherKey, $relation)
+    public function __construct(Builder $query, Model $parent, $constraintKeys, $relation)
     {
-        $this->otherKey = $otherKey;
+        $this->constraintKeys = $constraintKeys;
         $this->relation = $relation;
-        $this->foreignKey = $foreignKey;
 
         parent::__construct($query, $parent);
     }
@@ -79,7 +84,9 @@ class BelongsTo extends Relation
             // of the related models matching on the foreign key that's on a parent.
             $table = $this->related->getTable();
 
-            $this->query->where($table.'.'.$this->otherKey, '=', $this->parent->{$this->foreignKey});
+            foreach($this->constraintKeys as $foreignKey => $otherKey){
+                $this->query->where($table.'.'.$otherKey, '=', $this->parent->{$foreignKey});
+            }
         }
     }
 
@@ -99,9 +106,14 @@ class BelongsTo extends Relation
 
         $query->select($columns);
 
-        $otherKey = $this->wrap($query->getModel()->getTable().'.'.$this->otherKey);
+        $table = $query->getModel()->getTable() . '.';
 
-        return $query->where($this->getQualifiedForeignKey(), '=', new Expression($otherKey));
+        foreach($this->getQualifiedForeignKey() as $name => $key){
+            $otherKey = $this->wrap($table . $this->otherKey[ $name ]);
+            $query->where($this->getQualifiedForeignKey(), '=', new Expression($otherKey));
+        }
+
+        return $query;
     }
 
     /**
@@ -147,6 +159,8 @@ class BelongsTo extends Relation
         // a non-standard name and not "id". We will then construct the constraint for
         // our eagerly loading query so it returns the proper models from execution.
         $key = $this->related->getTable().'.'.$this->otherKey;
+
+        $list = $this->getEagerModelKeys($models);
 
         $this->query->whereIn($key, $this->getEagerModelKeys($models));
     }
@@ -288,11 +302,17 @@ class BelongsTo extends Relation
     /**
      * Get the fully qualified foreign key of the relationship.
      *
-     * @return string
+     * @return string[]
      */
     public function getQualifiedForeignKey()
     {
-        return $this->parent->getTable().'.'.$this->foreignKey;
+        $list = [];
+        $table = $this->parent->getTable().'.';
+        foreach ($this->foreignKey as $name => $key) {
+            $list[ $name ] = $table.$key;
+        }
+
+        return $list;
     }
 
     /**

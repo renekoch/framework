@@ -327,7 +327,7 @@ class Builder
      * Add a join clause to the query.
      *
      * @param  string  $table
-     * @param  string  $one
+     * @param  string|array  $one
      * @param  string  $operator
      * @param  string  $two
      * @param  string  $type
@@ -353,11 +353,21 @@ class Builder
         // "on" clause with a single condition. So we will just build the join with
         // this simple join clauses attached to it. There is not a join callback.
         else {
-            $join = new JoinClause($type, $table);
+            $join        = new JoinClause($type, $table);
 
-            $this->joins[] = $join->on(
-                $one, $operator, $two, 'and', $where
-            );
+            //take into account
+            $constraints = is_array($one) ? $one : [$one, $operator, $two, $where];
+
+            foreach ($constraints as $clause) {
+                $join->on(
+                  $clause[ 0 ],
+                  isset($clause[ 1 ]) ? $clause[ 1 ] : null,
+                  isset($clause[ 2 ]) ? $clause[ 2 ] : null,
+                  'and',
+                  isset($clause[ 3 ]) ? $clause[ 3 ] : $where
+                );
+            }
+            $this->joins[] = $join;
 
             $this->addBinding($join->bindings, 'join');
         }

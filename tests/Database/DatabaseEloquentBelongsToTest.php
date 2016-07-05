@@ -117,6 +117,7 @@ class DatabaseEloquentBelongsToTest extends PHPUnit_Framework_TestCase
         $builder->shouldReceive('getModel')->andReturn($related);
         $parent = $parent ?: new EloquentBelongsToModelStub;
 
+        return new BelongsTo($builder, $parent, ['foreign_key' => 'id'], 'relation');
         return new BelongsTo($builder, $parent, 'foreign_key', 'id', 'relation');
     }
 }
