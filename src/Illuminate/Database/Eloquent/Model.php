@@ -801,7 +801,6 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function belongsTo($related, $foreignKey = null, $otherKey = null, $relation = null)
     {
-
         /**
          * @var Model $instance
          */
@@ -1708,7 +1707,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function insertAndSetId(Builder $query, $attributes)
     {
-        $id = $query->insertGetId($attributes, $keyName = $this->getKeyName());
+        $keyName = $this->getKeyName();
+        $keyName = reset($keyName);
+
+        $id = $query->insertGetId($attributes, $keyName);
 
         $this->setAttribute($keyName, $id);
     }
