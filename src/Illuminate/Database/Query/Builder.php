@@ -1030,10 +1030,10 @@ class Builder
 
             foreach ($idList as $values) {
 
-                $fn = function (
-                    /** @var  Builder $query */
-                  $query
-                ) use ($fields, $values, $not) {
+                $fn = function ($query) use ($fields, $values, $not) {
+                    /**
+                     * @var  Builder $query
+                     */
                     foreach ($fields as $key => $field) {
 
                         if (!isset($values[ $key ])) {
