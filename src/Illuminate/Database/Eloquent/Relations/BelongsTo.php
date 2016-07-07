@@ -294,7 +294,7 @@ class BelongsTo extends Relation
      *
      * @return string
      */
-    public function getForeignKey()
+    public function getForeignKeys()
     {
         return $this->foreignKey;
     }

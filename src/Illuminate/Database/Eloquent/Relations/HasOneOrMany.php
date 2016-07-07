@@ -23,6 +23,14 @@ abstract class HasOneOrMany extends Relation
      */
     protected $localKey;
 
+
+    /**
+     * keys for contrraints.
+     *
+     * @var string[]
+     */
+    protected $constraintKeys;
+
     /**
      * The count of self joins.
      *
@@ -35,14 +43,12 @@ abstract class HasOneOrMany extends Relation
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $foreignKey
-     * @param  string  $localKey
+     * @param  string[]  $keys
      * @return void
      */
-    public function __construct(Builder $query, Model $parent, $foreignKey, $localKey)
+    public function __construct(Builder $query, Model $parent, array $constraintKeys)
     {
-        $this->localKey = $localKey;
-        $this->foreignKey = $foreignKey;
+        $this->constraintKeys = $constraintKeys;
 
         parent::__construct($query, $parent);
     }
@@ -55,9 +61,14 @@ abstract class HasOneOrMany extends Relation
     public function addConstraints()
     {
         if (static::$constraints) {
-            $this->query->where($this->foreignKey, '=', $this->getParentKey());
 
-            $this->query->whereNotNull($this->foreignKey);
+            foreach($this->constraintKeys as $foreignKey => $localKey){
+
+                $this->query->where($foreignKey, '=', $$this->parent->getAttribute($localKey));
+
+                $this->query->whereNotNull($foreignKey);
+            }
+
         }
     }
 
@@ -90,13 +101,19 @@ abstract class HasOneOrMany extends Relation
     {
         $query->select($columns);
 
-        $query->from($query->getModel()->getTable().' as '.$hash = $this->getRelationCountHash());
+        $query->from($query->getModel()->getTable().' as '. $hash = $this->getRelationCountHash());
 
         $query->getModel()->setTable($hash);
 
-        $key = $this->wrap($this->getQualifiedParentKeyName());
 
-        return $query->where($hash.'.'.$this->getPlainForeignKey(), '=', new Expression($key));
+        $table = $this->parent->getTable().'.';
+        foreach($this->getPlainConstraintKeys() as $foreignKey => $localKey){
+            $key = $this->wrap($table . $localKey);
+            $query->where($hash.'.'. $foreignKey, '=', new Expression($key));
+        }
+
+
+        return $query;
     }
 
     /**
@@ -112,18 +129,18 @@ abstract class HasOneOrMany extends Relation
     /**
      * Set the constraints for an eager load of the relation.
      *
-     * @param  array  $models
+     * @param  \Illuminate\Database\Eloquent\Model[]  $models
      * @return void
      */
     public function addEagerConstraints(array $models)
     {
-        $this->query->whereIn($this->foreignKey, $this->getKeys($models, $this->localKey));
+        $this->query->whereList(array_keys($this->constraintKeys), $this->getKeys($models, array_values($this->constraintKeys)));
     }
 
     /**
      * Match the eagerly loaded results to their single parents.
      *
-     * @param  array   $models
+     * @param  \Illuminate\Database\Eloquent\Model[]   $models
      * @param  \Illuminate\Database\Eloquent\Collection  $results
      * @param  string  $relation
      * @return array
@@ -136,7 +153,7 @@ abstract class HasOneOrMany extends Relation
     /**
      * Match the eagerly loaded results to their many parents.
      *
-     * @param  array   $models
+     * @param  \Illuminate\Database\Eloquent\Model[]   $models
      * @param  \Illuminate\Database\Eloquent\Collection  $results
      * @param  string  $relation
      * @return array
@@ -149,7 +166,7 @@ abstract class HasOneOrMany extends Relation
     /**
      * Match the eagerly loaded results to their many parents.
      *
-     * @param  array   $models
+     * @param  \Illuminate\Database\Eloquent\Model[]   $models
      * @param  \Illuminate\Database\Eloquent\Collection  $results
      * @param  string  $relation
      * @param  string  $type
@@ -163,7 +180,7 @@ abstract class HasOneOrMany extends Relation
         // link them up with their children using the keyed dictionary to make the
         // matching very convenient and easy work. Then we'll just return them.
         foreach ($models as $model) {
-            $key = $model->getAttribute($this->localKey);
+            $key = $model->getHashKey( array_values($this->getConstraintKeys()) )[0];
 
             if (isset($dictionary[$key])) {
                 $value = $this->getRelationValue($dictionary, $key, $type);
@@ -193,20 +210,24 @@ abstract class HasOneOrMany extends Relation
     /**
      * Build model dictionary keyed by the relation's foreign key.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Database\Eloquent\Collection $results
      * @return array
      */
     protected function buildDictionary(Collection $results)
     {
         $dictionary = [];
 
-        $foreign = $this->getPlainForeignKey();
+        $foreign = $this->getPlainConstraintKeys();
 
         // First we will create a dictionary of models keyed by the foreign key of the
         // relationship as this will allow us to quickly access all of the related
         // models without having to do nested looping which will be quite slow.
         foreach ($results as $result) {
-            $dictionary[$result->{$foreign}][] = $result;
+            /**
+             * @var \Illuminate\Database\Eloquent\Model  $result
+             */
+            $hash = $result->getHashKey(array_keys($foreign))[0];
+            $dictionary[ $hash ][] = $result;
         }
 
         return $dictionary;
@@ -220,7 +241,9 @@ abstract class HasOneOrMany extends Relation
      */
     public function save(Model $model)
     {
-        $model->setAttribute($this->getPlainForeignKey(), $this->getParentKey());
+        foreach($this->getPlainConstraintKeys() as $plainForeignKey => $parentKey){
+            $model->setAttribute($plainForeignKey, $this->getParent()->getAttribute($parentKey));
+        }
 
         return $model->save() ? $model : false;
     }
@@ -252,7 +275,9 @@ abstract class HasOneOrMany extends Relation
         if (is_null($instance = $this->find($id, $columns))) {
             $instance = $this->related->newInstance();
 
-            $instance->setAttribute($this->getPlainForeignKey(), $this->getParentKey());
+            foreach($this->getPlainConstraintKeys() as $plainForeignKey => $parentKey){
+                $instance->setAttribute($plainForeignKey, $this->getParent()->getAttribute($parentKey));
+            }
         }
 
         return $instance;
@@ -266,10 +291,12 @@ abstract class HasOneOrMany extends Relation
      */
     public function firstOrNew(array $attributes)
     {
-        if (is_null($instance = $this->where($attributes)->first())) {
+        if (is_null($instance = $this->getQuery()->where($attributes)->first())) {
             $instance = $this->related->newInstance($attributes);
 
-            $instance->setAttribute($this->getPlainForeignKey(), $this->getParentKey());
+            foreach($this->getPlainConstraintKeys() as $plainForeignKey => $parentKey){
+                $instance->setAttribute($plainForeignKey, $this->getParent()->getAttribute($parentKey));
+            }
         }
 
         return $instance;
@@ -283,7 +310,7 @@ abstract class HasOneOrMany extends Relation
      */
     public function firstOrCreate(array $attributes)
     {
-        if (is_null($instance = $this->where($attributes)->first())) {
+        if (is_null($instance = $this->getQuery()->where($attributes)->first())) {
             $instance = $this->create($attributes);
         }
 
@@ -321,7 +348,9 @@ abstract class HasOneOrMany extends Relation
         // on the models. Otherwise, some of these attributes will not get set.
         $instance = $this->related->newInstance($attributes);
 
-        $instance->setAttribute($this->getPlainForeignKey(), $this->getParentKey());
+        foreach($this->getPlainConstraintKeys() as $plainForeignKey => $parentKey){
+            $instance->setAttribute($plainForeignKey, $this->getParent()->getAttribute($parentKey));
+        }
 
         $instance->save();
 
@@ -363,33 +392,48 @@ abstract class HasOneOrMany extends Relation
     /**
      * Get the key for comparing against the parent key in "has" query.
      *
-     * @return string
+     * @return string[]
      */
-    public function getHasCompareKey()
+    public function getHasCompareKeys()
     {
-        return $this->getForeignKey();
+        return $this->getConstraintKeys();
     }
 
     /**
      * Get the foreign key for the relationship.
      *
-     * @return string
+     * @return string[]
      */
-    public function getForeignKey()
+    public function getForeignKeys()
     {
-        return $this->foreignKey;
+        return array_keys($this->constraintKeys);
+    }
+
+    /**
+     * Get the foreign key for the relationship.
+     *
+     * @return string[]
+     */
+    public function getConstraintKeys()
+    {
+        return $this->constraintKeys;
     }
 
     /**
      * Get the plain foreign key.
      *
-     * @return string
+     * @return string[]
      */
-    public function getPlainForeignKey()
+    public function getPlainConstraintKeys()
     {
-        $segments = explode('.', $this->getForeignKey());
+        $list = $this->getConstraintKeys();
+        foreach($list as $name => $key){
+            $segments = explode('.', $key);
 
-        return $segments[count($segments) - 1];
+            $list[$name] = last($segments);
+        }
+
+        return $list;
     }
 
     /**
@@ -397,9 +441,14 @@ abstract class HasOneOrMany extends Relation
      *
      * @return mixed
      */
-    public function getParentKey()
+    public function getParentKeys()
     {
-        return $this->parent->getAttribute($this->localKey);
+        $list = [];
+        foreach ($this->getConstraintKeys() as $foreignKey => $localKey) {
+            $list[$localKey] = $this->parent->getAttribute($localKey);
+        }
+
+        return $list;
     }
 
     /**
@@ -409,6 +458,12 @@ abstract class HasOneOrMany extends Relation
      */
     public function getQualifiedParentKeyName()
     {
-        return $this->parent->getTable().'.'.$this->localKey;
+        $list = $this->getConstraintKeys();
+        $table = $this->parent->getTable().'.';
+        foreach($list  as $name => $localKey){
+            $list[$name] = $table.$localKey;
+        }
+
+        return $list;
     }
 }

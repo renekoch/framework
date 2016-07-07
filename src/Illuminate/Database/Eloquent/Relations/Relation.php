@@ -14,7 +14,7 @@ abstract class Relation
     /**
      * The Eloquent query builder instance.
      *
-     * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder
+     * @var \Illuminate\Database\Eloquent\Builder
      */
     protected $query;
 
@@ -106,11 +106,11 @@ abstract class Relation
     /**
      * Get the relationship for eager loading.
      *
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Database\Eloquent\Collection|Model[]
      */
     public function getEager()
     {
-        return $this->get();
+        return $this->query->get();
     }
 
     /**
@@ -151,18 +151,27 @@ abstract class Relation
     /**
      * Add the constraints for a relationship query.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  \Illuminate\Database\Eloquent\Builder  $parent
-     * @param  array|mixed $columns
+     * @param  \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Builder $parent
+     * @param  array|mixed                           $columns
+     *
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationQuery(Builder $query, Builder $parent, $columns = ['*'])
     {
-        $query->select($columns);
+        $query->getQuery()->select($columns);
 
-        $key = $this->wrap($this->getQualifiedParentKeyName());
+        /**
+         * @var string[] $compareKeys
+         */
+        /** @noinspection PhpUndefinedMethodInspection */
+        $compareKeys   = $this->getHasCompareKeys();
+        $parentKeyName = $this->getQualifiedParentKeyName();
+        foreach ($compareKeys as $name => $compareKeyName) {
+            $query->where($compareKeyName, '=', new Expression($this->wrap($parentKeyName[ $name ])));
+        }
 
-        return $query->where($this->getHasCompareKey(), '=', new Expression($key));
+        return $query;
     }
 
     /**
@@ -192,15 +201,20 @@ abstract class Relation
     /**
      * Get all of the primary keys for an array of models.
      *
-     * @param  array   $models
-     * @param  string  $key
+     * @param  Model[] $models
+     * @param  string  $keys
+     *
      * @return array
      */
-    protected function getKeys(array $models, $key = null)
+    protected function getKeys(array $models, $keys = null)
     {
-        return array_unique(array_values(array_map(function ($value) use ($key) {
-            return $key ? $value->getAttribute($key) : $value->getKey();
-        }, $models)));
+        $list = [];
+        foreach ($models as $model) {
+            list($hash, $data) = $model->getHashKey($keys);
+            $list[ $hash ] = $data;
+        }
+
+        return array_values($list);
     }
 
     /**
@@ -236,7 +250,7 @@ abstract class Relation
     /**
      * Get the fully qualified parent key name.
      *
-     * @return string
+     * @return string[]
      */
     public function getQualifiedParentKeyName()
     {

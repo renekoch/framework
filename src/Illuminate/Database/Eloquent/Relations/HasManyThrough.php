@@ -96,7 +96,7 @@ class HasManyThrough extends Relation
 
         $key = $this->wrap($parentTable.'.'.$this->firstKey);
 
-        return $query->where($this->getHasCompareKey(), '=', new Expression($key));
+        return $query->where($this->getHasCompareKeys(), '=', new Expression($key));
     }
 
     /**
@@ -111,6 +111,7 @@ class HasManyThrough extends Relation
 
         $foreignKey = $this->related->getTable().'.'.$this->secondKey;
 
+        
         $query->join($this->parent->getTable(), $this->getQualifiedParentKeyName(), '=', $foreignKey);
 
         if ($this->parentSoftDeletes()) {
@@ -387,7 +388,7 @@ class HasManyThrough extends Relation
      *
      * @return string
      */
-    public function getHasCompareKey()
+    public function getHasCompareKeys()
     {
         return $this->farParent->getQualifiedKeyName();
     }
@@ -397,7 +398,7 @@ class HasManyThrough extends Relation
      *
      * @return string
      */
-    public function getForeignKey()
+    public function getForeignKeys()
     {
         return $this->related->getTable().'.'.$this->secondKey;
     }

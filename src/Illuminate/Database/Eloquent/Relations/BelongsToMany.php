@@ -1250,7 +1250,7 @@ class BelongsToMany extends Relation
      *
      * @return string
      */
-    public function getHasCompareKey()
+    public function getHasCompareKeys()
     {
         return $this->getForeignKey();
     }
@@ -1260,7 +1260,7 @@ class BelongsToMany extends Relation
      *
      * @return string
      */
-    public function getForeignKey()
+    public function getForeignKeys()
     {
         return $this->table.'.'.$this->foreignKey;
     }

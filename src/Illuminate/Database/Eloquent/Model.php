@@ -747,9 +747,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Define a one-to-one relationship.
      *
-     * @param  string  $related
-     * @param  string  $foreignKey
-     * @param  string  $localKey
+     * @param  string          $related
+     * @param  string|string[] $foreignKey
+     * @param  string          $localKey
+     *
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function hasOne($related, $foreignKey = null, $localKey = null)
@@ -758,10 +759,30 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
          * @var Model $instance
          */
         $instance = new $related;
+        $base     = Str::snake(class_basename($this)).'_';
 
-        $localKey = $localKey ?: $this->getKeyName();
+        if (is_string($foreignKey)) {
 
-        return new HasOne($instance->newQuery(), $this, $instance->getTable().'.'.$foreignKey, $localKey);
+            if (is_null($localKey)) {
+                $localKey = $base.$foreignKey;
+            }
+
+            $foreignKey = [$foreignKey => $localKey];
+        } elseif (is_null($foreignKey)) {
+
+            $foreignKey = [];
+            foreach ($this->getKeyName() as $keyname) {
+                $foreignKey[ $keyname ] = $base.$keyname;
+            }
+        }
+
+        $table = $instance->getTable().'.';
+        $keys  = [];
+        foreach ($foreignKey as $fkey => $lkey) {
+            $keys[ $table.$fkey ] = $lkey;
+        }
+
+        return new HasOne($instance->newQuery(), $this, $keys);
     }
 
     /**
@@ -821,9 +842,8 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)){
             //if no $otherKey try to guess the most likely key
             if (!$otherKey){
-                $key = str_replace($base, '', $foreignKey);
                 $otherKey = $instance->getKeyName();
-                $otherKey = isset($otherKey[$key]) ? $otherKey[$key] : reset($otherKey);
+                $otherKey = reset($otherKey);
             }
 
             $keys = [$foreignKey => $otherKey];
@@ -844,7 +864,6 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // for the related models and returns the relationship instance which will
         // actually be responsible for retrieving and hydrating every relations.
         $query = $instance->newQuery();
-
 
         return new BelongsTo($query, $this, $keys, $relation);
     }
@@ -911,20 +930,44 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Define a one-to-many relationship.
      *
-     * @param  string  $related
-     * @param  string  $foreignKey
-     * @param  string  $localKey
+     * @param  string          $related
+     * @param  string|string[] $foreignKey
+     * @param  string          $localKey
+     *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function hasMany($related, $foreignKey = null, $localKey = null)
     {
-        $foreignKey = $foreignKey ?: $this->getForeignKey();
-
+        /**
+         * @var Model $instance
+         */
         $instance = new $related;
+        $base     = Str::snake(class_basename($this)).'_';
 
-        $localKey = $localKey ?: $this->getKeyName();
+        //to support old style key settings
+        if (is_string($foreignKey)) {
+            //if no $localKey try to guess the most likely key
+            if (!$localKey) {
+                $localKey = $instance->getKeyName();
+                $localKey = reset($localKey);
+            }
 
-        return new HasMany($instance->newQuery(), $this, $instance->getTable().'.'.$foreignKey, $localKey);
+            $foreignKey = [$foreignKey => $localKey];
+        }
+        elseif (is_null($foreignKey)) {
+            $foreignKey = [];
+            foreach ($instance->getKeyName() as $keyname) {
+                $foreignKey[ $base.$keyname ] = $keyname;
+            }
+        }
+
+        $table = $instance->getTable().'.';
+        $keys  = [];
+        foreach ($foreignKey as $fkey => $lkey) {
+            $keys[ $table.$fkey ] = $lkey;
+        }
+
+        return new HasMany($instance->newQuery(), $this, $keys);
     }
 
     /**
@@ -944,9 +987,9 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
          */
         $through = new $through;
 
-        $firstKey = $firstKey ?: $this->getForeignKey();
+        $firstKey = $firstKey ?: $this->getForeignKeys();
 
-        $secondKey = $secondKey ?: $through->getForeignKey();
+        $secondKey = $secondKey ?: $through->getForeignKeys();
 
         $localKey = $localKey ?: $this->getKeyName();
 
@@ -1010,14 +1053,14 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // First, we'll need to determine the foreign key and "other key" for the
         // relationship. Once we have determined the keys we'll make the query
         // instances as well as the relationship instances we need for this.
-        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        $foreignKey = $foreignKey ?: $this->getForeignKeys();
 
         /**
          * @var Model $instance
          */
         $instance = new $related;
 
-        $otherKey = $otherKey ?: $instance->getForeignKey();
+        $otherKey = $otherKey ?: $instance->getForeignKeys();
 
         // If no table name was provided, we can guess it by concatenating the two
         // models using underscores in alphabetical order. The two model names
@@ -1059,7 +1102,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
          */
         $instance = new $related;
 
-        $otherKey = $otherKey ?: $instance->getForeignKey();
+        $otherKey = $otherKey ?: $instance->getForeignKeys();
 
         // Now we're ready to create a new query builder for this related model and
         // the relationship instances for this relation. This relations will set
@@ -1086,7 +1129,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function morphedByMany($related, $name, $table = null, $foreignKey = null, $otherKey = null)
     {
-        $foreignKey = $foreignKey ?: $this->getForeignKey();
+        $foreignKey = $foreignKey ?: $this->getForeignKeys();
 
         // For the inverse of the polymorphic many-to-many relations, we will change
         // the way we determine the foreign and other keys, as it is the opposite
@@ -2031,12 +2074,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getKey()
     {
-        $keys = (array)$this->getKeyName();
-        $fn   = function ($keyname) {
-            return $this->getAttribute($keyname);
-        };
 
-        return count($keys) > 1 ? array_map($fn, array_combine($keys, $keys)) : $fn(reset($keys));
+        $list = [];
+        foreach($this->getKeyName() as $keyname){
+            $list[$keyname] = $this->getAttribute($keyname);
+        }
+
+        return $list;
     }
 
     /**
@@ -2075,7 +2119,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the table qualified key name.
      *
-     * @return string
+     * @return string[]
      */
     public function getQualifiedKeyName()
     {
@@ -2106,6 +2150,38 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function getRouteKeyName()
     {
         return $this->getKeyName();
+    }
+
+
+    /**
+     * @var string[]
+     */
+    protected $hashCache = [];
+
+    /**
+     * @param string[]|null $keys
+     *
+     * @return array
+     */
+    public function getHashKey($keys = null)
+    {
+
+        $keys = (array)($keys ?: $this->getKeyName());
+
+        $cache = implode('|', array_values($keys));
+
+        if (isset($this->hashCache[ $cache ])) {
+            return $this->hashCache[ $cache ];
+        }
+
+        $hash = '';
+        $data = [];
+        foreach ($keys as $keyname) {
+            $val = $data[ $keyname ] = $this->getAttribute($keyname);
+            $hash .= $keyname.((string)$val);
+        }
+
+        return $this->hashCache[ $cache ] = [$hash, $data];
     }
 
     /**
@@ -2181,7 +2257,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      *
      * @return string[]
      */
-    public function getForeignKey()
+    public function getForeignKeys()
     {
         $basename = Str::snake(class_basename($this)) . '_';
         $keys = [];
