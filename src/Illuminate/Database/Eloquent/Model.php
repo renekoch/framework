@@ -2154,34 +2154,21 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
 
     /**
-     * @var string[]
-     */
-    protected $hashCache = [];
-
-    /**
      * @param string[]|null $keys
      *
      * @return array
      */
     public function getHashKey($keys = null)
     {
-
         $keys = (array)($keys ?: $this->getKeyName());
-
-        $cache = implode('|', array_values($keys));
-
-        if (isset($this->hashCache[ $cache ])) {
-            return $this->hashCache[ $cache ];
-        }
-
         $hash = '';
         $data = [];
-        foreach ($keys as $keyname) {
+        foreach ($keys as $keyid =>$keyname) {
             $val = $data[ $keyname ] = $this->getAttribute($keyname);
-            $hash .= $keyname.((string)$val);
+            $hash .= (is_numeric($keyid) ? $keyname : $keyid).((string)$val);
         }
 
-        return $this->hashCache[ $cache ] = [$hash, $data];
+        return [$hash, $data];
     }
 
     /**

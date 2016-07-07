@@ -226,7 +226,7 @@ abstract class HasOneOrMany extends Relation
             /**
              * @var \Illuminate\Database\Eloquent\Model  $result
              */
-            $hash = $result->getHashKey(array_keys($foreign))[0];
+            $hash = $result->getHashKey(array_flip($foreign))[0];
             $dictionary[ $hash ][] = $result;
         }
 
@@ -426,14 +426,15 @@ abstract class HasOneOrMany extends Relation
      */
     public function getPlainConstraintKeys()
     {
-        $list = $this->getConstraintKeys();
-        foreach($list as $name => $key){
-            $segments = explode('.', $key);
+        $result = [];
+        foreach($this->getConstraintKeys() as $name => $key){
+            $key = explode('.', $key);
+            $name = explode('.', $name);
 
-            $list[$name] = last($segments);
+            $result[last($name)] = last($key);
         }
 
-        return $list;
+        return $result;
     }
 
     /**
