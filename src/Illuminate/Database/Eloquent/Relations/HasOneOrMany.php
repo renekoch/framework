@@ -64,9 +64,9 @@ abstract class HasOneOrMany extends Relation
 
             foreach($this->constraintKeys as $foreignKey => $localKey){
 
-                $this->query->where($foreignKey, '=', $$this->parent->getAttribute($localKey));
+                $this->query->getQuery()->where($foreignKey, '=', $this->parent->getAttribute($localKey));
 
-                $this->query->whereNotNull($foreignKey);
+                $this->query->getQuery()->whereNotNull($foreignKey);
             }
 
         }

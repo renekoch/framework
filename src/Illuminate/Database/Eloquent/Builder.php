@@ -1046,7 +1046,7 @@ class Builder
         if (is_string($relations)) {
             $relations = func_get_args();
         }
-
+        
         $eagers = $this->parseWithRelations($relations);
 
         $this->eagerLoad = array_merge($this->eagerLoad, $eagers);
