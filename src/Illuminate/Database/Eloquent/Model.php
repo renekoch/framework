@@ -2154,18 +2154,25 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
 
     /**
-     * @param string[]|null $keys
+     * Make a hash key out of a list of $attributes or primary keys
+     *
+     * @param string[]|null $attributes
+     * @param boolean       $noNullValues
      *
      * @return array
      */
-    public function getHashKey($keys = null)
+    public function getHashKey($attributes = null, $noNullValues = false)
     {
-        $keys = (array)($keys ?: $this->getKeyName());
-        $hash = '';
-        $data = [];
-        foreach ($keys as $keyid =>$keyname) {
+        $attributes = (array)($attributes ?: $this->getKeyName());
+        $hash       = '';
+        $data       = [];
+        foreach ($attributes as $keyid => $keyname) {
             $val = $data[ $keyname ] = $this->getAttribute($keyname);
-            $hash .= (is_numeric($keyid) ? $keyname : $keyid).((string)$val);
+            if ($noNullValues && is_null($val)) {
+                return null;
+            }
+            $key = is_numeric($keyid) ? $keyname : $keyid;
+            $hash .= $key . (string)$val;
         }
 
         return [$hash, $data];
@@ -3240,12 +3247,23 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     }
 
     /**
-     * Get all of the current attributes on the model.
+     * Get all or a subset of the current attributes on the model.
+     *
+     * @param null $subset
      *
      * @return array
      */
-    public function getAttributes()
+    public function getAttributes($subset = null)
     {
+        if (!is_null($subset)){
+            $list = [];
+            foreach(((array)$subset) as $key => $attribute){
+                $list[is_numeric($key) ? $attribute : $key] = $this->getAttribute($attribute);
+            }
+
+            return $list;
+        }
+
         return $this->attributes;
     }
 
