@@ -159,16 +159,22 @@ abstract class Relation
      */
     public function getRelationQuery(Builder $query, Builder $parent, $columns = ['*'])
     {
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $query
+         */
         $query->getQuery()->select($columns);
 
-        /**
-         * @var string[] $compareKeys
-         */
-        /** @noinspection PhpUndefinedMethodInspection */
-        $compareKeys   = $this->getHasCompareKeys();
-        $parentKeyName = $this->getQualifiedParentKeyName();
-        foreach ($compareKeys as $name => $compareKeyName) {
-            $query->where($compareKeyName, '=', new Expression($this->wrap($parentKeyName[ $name ])));
+        $compareKeys = $this->getHasCompareKeys();
+
+        //if not keys cant compare
+        if (empty($compareKeys)) {
+            $query->whereRaw("0");
+        }
+        else {
+            $parentKeyName = $this->getQualifiedParentKeyName();
+            foreach ($compareKeys as $name => $compareKeyName) {
+                $query->where($compareKeyName, '=', new Expression($this->wrap($parentKeyName[ $name ])));
+            }
         }
 
         return $query;
@@ -361,6 +367,16 @@ abstract class Relation
         }
 
         return $result;
+    }
+
+    /**
+     * Get the key for comparing against the parent key in "has" query.
+     *
+     * @return string[]
+     */
+    public function getHasCompareKeys()
+    {
+        return [];
     }
 
     /**
