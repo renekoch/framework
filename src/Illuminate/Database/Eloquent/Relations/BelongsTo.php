@@ -213,7 +213,7 @@ class BelongsTo extends Relation
         // Once we have the dictionary constructed, we can loop through all the parents
         // and match back onto their children using these keys of the dictionary and
         // the primary key of the children to map them onto the correct instances.
-        $keys = $this->getConstraintKeys();
+        $keys = array_flip($this->getConstraintKeys());
         foreach ($models as $model) {
             $hash = $model->getHashKey($keys)[ 0 ];
             if (isset($dictionary[ $hash ])) {
@@ -234,7 +234,7 @@ class BelongsTo extends Relation
     {
         $dictionary = [];
 
-        $keys = $this->getConstraintKeys();
+        $keys = array_values($this->getConstraintKeys());
 
         // First we will create a dictionary of models keyed by the foreign key of the
         // relationship as this will allow us to quickly access all of the related
