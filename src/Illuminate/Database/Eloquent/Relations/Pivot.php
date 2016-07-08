@@ -17,14 +17,14 @@ class Pivot extends Model
     /**
      * The name of the foreign key column.
      *
-     * @var string
+     * @var string[]
      */
     protected $foreignKey;
 
     /**
      * The name of the "other key" column.
      *
-     * @var string
+     * @var string[]
      */
     protected $otherKey;
 
@@ -95,9 +95,13 @@ class Pivot extends Model
      */
     protected function setKeysForSaveQuery(Builder $query)
     {
-        $query->where($this->foreignKey, $this->getAttribute($this->foreignKey));
+        foreach($this->foreignKey as $key){
 
-        return $query->where($this->otherKey, $this->getAttribute($this->otherKey));
+            $query->where($key, $this->getAttribute($key));
+        }
+
+
+        return $query;
     }
 
     /**
@@ -117,17 +121,23 @@ class Pivot extends Model
      */
     protected function getDeleteQuery()
     {
-        $foreign = $this->getAttribute($this->foreignKey);
 
-        $query = $this->newQuery()->where($this->foreignKey, $foreign);
+        $query = $this->newQuery();
 
-        return $query->where($this->otherKey, $this->getAttribute($this->otherKey));
+        foreach($this->foreignKey as $foreignKey){
+            $query->where($foreignKey, $this->getAttribute($foreignKey));
+        }
+        foreach($this->otherKey as $otherKey){
+            $query->where($otherKey, $this->getAttribute($otherKey));
+        }
+
+        return $query;
     }
 
     /**
      * Get the foreign key column name.
      *
-     * @return string
+     * @return string[]
      */
     public function getForeignKeys()
     {
@@ -137,9 +147,9 @@ class Pivot extends Model
     /**
      * Get the "other key" column name.
      *
-     * @return string
+     * @return string[]
      */
-    public function getOtherKey()
+    public function getOtherKeys()
     {
         return $this->otherKey;
     }
@@ -147,15 +157,15 @@ class Pivot extends Model
     /**
      * Set the key names for the pivot model instance.
      *
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
+     * @param  string[]  $foreignKey
+     * @param  string[]  $otherKey
      * @return $this
      */
     public function setPivotKeys($foreignKey, $otherKey)
     {
-        $this->foreignKey = $foreignKey;
+        $this->foreignKey = (array)$foreignKey;
 
-        $this->otherKey = $otherKey;
+        $this->otherKey = (array)$otherKey;
 
         return $this;
     }
