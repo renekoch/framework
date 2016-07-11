@@ -139,7 +139,7 @@ class Pivot extends Model
      *
      * @return string[]
      */
-    public function getForeignKeys()
+    public function getForeignKeys($attributes = null)
     {
         return $this->foreignKey;
     }
