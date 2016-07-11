@@ -21,7 +21,7 @@ class HasManyThrough extends Relation
     /**
      * The near key on the relationship.
      *
-     * @var string
+     * @var string[]
      */
     protected $firstKey;
 
@@ -35,7 +35,7 @@ class HasManyThrough extends Relation
     /**
      * The local key on the relationship.
      *
-     * @var string
+     * @var string[]
      */
     protected $localKey;
 
@@ -45,10 +45,9 @@ class HasManyThrough extends Relation
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Model  $farParent
      * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $firstKey
-     * @param  string  $secondKey
-     * @param  string  $localKey
-     * @return void
+     * @param  string[]  $firstKey
+     * @param  string[]  $secondKey
+     * @param  string[]  $localKey
      */
     public function __construct(Builder $query, Model $farParent, Model $parent, $firstKey, $secondKey, $localKey)
     {
@@ -67,14 +66,14 @@ class HasManyThrough extends Relation
      */
     public function addConstraints()
     {
-        $parentTable = $this->parent->getTable();
-
-        $localValue = $this->farParent[$this->localKey];
-
         $this->setJoin();
 
         if (static::$constraints) {
-            $this->query->where($parentTable.'.'.$this->firstKey, '=', $localValue);
+            $parentTable = $this->parent->getTable();
+            foreach($this->localKey as $name => $key){
+                $this->query->where($parentTable.'.'.$this->firstKey[$name], '=', $this->farParent[$key]);
+            }
+
         }
     }
 
@@ -88,15 +87,20 @@ class HasManyThrough extends Relation
      */
     public function getRelationQuery(Builder $query, Builder $parent, $columns = ['*'])
     {
-        $parentTable = $this->parent->getTable();
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+         */
+        $parentTable = $this->parent->getTable().'.';
 
         $this->setJoin($query);
 
         $query->select($columns);
 
-        $key = $this->wrap($parentTable.'.'.$this->firstKey);
+        foreach($this->getHasCompareKeys() as $field => $key){
+            $query->where($field, '=', new Expression($parentTable . $key));
+        }
 
-        return $query->where($this->getHasCompareKeys(), '=', new Expression($key));
+        return $query;
     }
 
     /**
@@ -107,6 +111,9 @@ class HasManyThrough extends Relation
      */
     protected function setJoin(Builder $query = null)
     {
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $query
+         */
         $query = $query ?: $this->query;
 
         $foreignKey = $this->related->getTable().'.'.$this->secondKey;
@@ -115,6 +122,7 @@ class HasManyThrough extends Relation
         $query->join($this->parent->getTable(), $this->getQualifiedParentKeyName(), '=', $foreignKey);
 
         if ($this->parentSoftDeletes()) {
+            /** @noinspection PhpUndefinedMethodInspection */
             $query->whereNull($this->parent->getQualifiedDeletedAtColumn());
         }
     }
@@ -137,9 +145,7 @@ class HasManyThrough extends Relation
      */
     public function addEagerConstraints(array $models)
     {
-        $table = $this->parent->getTable();
-
-        $this->query->whereIn($table.'.'.$this->firstKey, $this->getKeys($models));
+        $this->query->getQuery()->whereList($this->getThroughKey(), $this->getKeys($models));
     }
 
     /**
@@ -226,8 +232,10 @@ class HasManyThrough extends Relation
      */
     public function first($columns = ['*'])
     {
+        /** @noinspection PhpUndefinedMethodInspection */
         $results = $this->take(1)->get($columns);
 
+        /** @noinspection PhpUndefinedMethodInspection */
         return count($results) > 0 ? $results->first() : null;
     }
 
@@ -261,7 +269,7 @@ class HasManyThrough extends Relation
             return $this->findMany($id, $columns);
         }
 
-        $this->where($this->getRelated()->getQualifiedKeyName(), '=', $id);
+        $this->query->where($this->getRelated()->getQualifiedKeyName(), '=', $id);
 
         return $this->first($columns);
     }
@@ -279,7 +287,7 @@ class HasManyThrough extends Relation
             return $this->getRelated()->newCollection();
         }
 
-        $this->whereIn($this->getRelated()->getQualifiedKeyName(), $ids);
+        $this->query->getQuery()->whereIn($this->getRelated()->getQualifiedKeyName(), $ids);
 
         return $this->get($columns);
     }
@@ -322,7 +330,9 @@ class HasManyThrough extends Relation
         $columns = $this->query->getQuery()->columns ? [] : $columns;
 
         $select = $this->getSelectColumns($columns);
-
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $builder
+         */
         $builder = $this->query->applyScopes();
 
         $models = $builder->addSelect($select)->getModels();
@@ -349,7 +359,12 @@ class HasManyThrough extends Relation
             $columns = [$this->related->getTable().'.*'];
         }
 
-        return array_merge($columns, [$this->parent->getTable().'.'.$this->firstKey]);
+        $table = $this->parent->getTable().'.';
+        foreach($this->firstKey as $key){
+            $columns[] = $table . $key;
+        }
+
+        return $columns;
     }
 
     /**
@@ -363,7 +378,7 @@ class HasManyThrough extends Relation
      */
     public function paginate($perPage = null, $columns = ['*'], $pageName = 'page', $page = null)
     {
-        $this->query->addSelect($this->getSelectColumns($columns));
+        $this->query->getQuery()->addSelect($this->getSelectColumns($columns));
 
         return $this->query->paginate($perPage, $columns, $pageName, $page);
     }
@@ -378,7 +393,7 @@ class HasManyThrough extends Relation
      */
     public function simplePaginate($perPage = null, $columns = ['*'], $pageName = 'page')
     {
-        $this->query->addSelect($this->getSelectColumns($columns));
+        $this->query->getQuery()->addSelect($this->getSelectColumns($columns));
 
         return $this->query->simplePaginate($perPage, $columns, $pageName);
     }
@@ -386,7 +401,7 @@ class HasManyThrough extends Relation
     /**
      * Get the key for comparing against the parent key in "has" query.
      *
-     * @return string
+     * @return string[]
      */
     public function getHasCompareKeys()
     {
@@ -410,6 +425,12 @@ class HasManyThrough extends Relation
      */
     public function getThroughKey()
     {
-        return $this->parent->getTable().'.'.$this->firstKey;
+        $list = $this->firstKey;
+        $table =  $this->parent->getTable().'.';
+        foreach($list as $key => $val){
+            $list[$key] = $table . $val;
+        }
+
+        return $list;
     }
 }

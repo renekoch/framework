@@ -83,7 +83,7 @@ class DatabaseEloquentPivotTest extends PHPUnit_Framework_TestCase
         $pivot->setPivotKeys('foreign', 'other');
 
         $this->assertEquals('foreign', $pivot->getForeignKeys());
-        $this->assertEquals('other', $pivot->getOtherKey());
+        $this->assertEquals('other', $pivot->getOtherKeys());
     }
 
     public function testDeleteMethodDeletesModelByKeys()

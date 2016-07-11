@@ -21,14 +21,14 @@ class BelongsToMany extends Relation
     /**
      * The foreign key of the parent model.
      *
-     * @var string
+     * @var string[]
      */
     protected $foreignKey;
 
     /**
      * The associated key of the relation.
      *
-     * @var string
+     * @var string[]
      */
     protected $otherKey;
 
@@ -80,10 +80,9 @@ class BelongsToMany extends Relation
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Model  $parent
      * @param  string  $table
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
+     * @param  string[]  $foreignKey
+     * @param  string[]  $otherKey
      * @param  string  $relationName
-     * @return void
      */
     public function __construct(Builder $query, Model $parent, $table, $foreignKey, $otherKey, $relationName = null)
     {
@@ -118,7 +117,9 @@ class BelongsToMany extends Relation
     {
         $this->pivotWheres[] = func_get_args();
 
-        return $this->where($this->table.'.'.$column, $operator, $value, $boolean);
+        $this->getQuery()->where($this->table.'.'.$column, $operator, $value, $boolean);
+
+        return $this;
     }
 
     /**
@@ -134,7 +135,9 @@ class BelongsToMany extends Relation
     {
         $this->pivotWheres[] = func_get_args();
 
-        return $this->whereIn($this->table.'.'.$column, $values, $boolean, $not);
+        $this->getQuery()->getQuery()->whereIn($this->table.'.'.$column, $values, $boolean, $not);
+
+        return $this;
     }
 
     /**
@@ -166,20 +169,21 @@ class BelongsToMany extends Relation
      * Execute the query and get the first result.
      *
      * @param  array   $columns
-     * @return mixed
+     * @return \Illuminate\Database\Eloquent\Model|null
      */
     public function first($columns = ['*'])
     {
-        $results = $this->take(1)->get($columns);
+        $this->getQuery()->getQuery()->take(1);
+        $results = $this->get($columns);
 
-        return count($results) > 0 ? $results->first() : null;
+        return $results->first();
     }
 
     /**
      * Execute the query and get the first result or throw an exception.
      *
      * @param  array  $columns
-     * @return \Illuminate\Database\Eloquent\Model|static
+     * @return \Illuminate\Database\Eloquent\Model
      *
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
@@ -408,15 +412,15 @@ class BelongsToMany extends Relation
      */
     protected function getAliasedPivotColumns()
     {
-        $defaults = [$this->foreignKey, $this->otherKey];
+        $attributes = array_merge(array_values($this->foreignKey), array_values($this->otherKey), $this->pivotColumns);
 
         // We need to alias all of the pivot columns with the "pivot_" prefix so we
         // can easily extract them out of the models and put them into the pivot
         // relationships when they are retrieved and hydrated into the models.
         $columns = [];
 
-        foreach (array_merge($defaults, $this->pivotColumns) as $column) {
-            $columns[] = $this->table.'.'.$column.' as pivot_'.$column;
+        foreach ($attributes as $attribute) {
+            $columns[] = $this->table.'.'.$attribute.' as pivot_'.$attribute;
         }
 
         return array_unique($columns);
@@ -446,11 +450,10 @@ class BelongsToMany extends Relation
         // We need to join to the intermediate table on the related model's primary
         // key column with the intermediate table's foreign key for the related
         // model instance. Then we can set the "where" for the parent models.
-        $baseTable = $this->related->getTable();
-
-        $key = $baseTable.'.'.$this->related->getKeyName();
-
-        $query->join($this->table, $key, '=', $this->getOtherKey());
+        $baseTable = $this->related->getTable().'.';
+        foreach($this->getOtherKeys() as $key => $otherKey){
+            $query->join($this->table, $baseTable . $key, '=', $otherKey);
+        }
 
         return $this;
     }
@@ -462,9 +465,9 @@ class BelongsToMany extends Relation
      */
     protected function setWhere()
     {
-        $foreign = $this->getForeignKey();
-
-        $this->query->where($foreign, '=', $this->parent->getKey());
+        foreach($this->getForeignKeys() as $key => $foreignKey){
+            $this->query->where($foreignKey, '=', $this->parent->getAttribute($key));
+        }
 
         return $this;
     }
@@ -472,18 +475,18 @@ class BelongsToMany extends Relation
     /**
      * Set the constraints for an eager load of the relation.
      *
-     * @param  array  $models
+     * @param  \Illuminate\Database\Eloquent\Model[]  $models
      * @return void
      */
     public function addEagerConstraints(array $models)
     {
-        $this->query->whereIn($this->getForeignKey(), $this->getKeys($models));
+        $this->query->getQuery()->whereIn($this->getForeignKeys(), $this->getKeys($models));
     }
 
     /**
      * Initialize the relation on a set of models.
      *
-     * @param  array   $models
+     * @param  \Illuminate\Database\Eloquent\Model[]   $models
      * @param  string  $relation
      * @return array
      */
@@ -499,7 +502,7 @@ class BelongsToMany extends Relation
     /**
      * Match the eagerly loaded results to their parents.
      *
-     * @param  array   $models
+     * @param  \Illuminate\Database\Eloquent\Model[]   $models
      * @param  \Illuminate\Database\Eloquent\Collection  $results
      * @param  string  $relation
      * @return array
@@ -512,8 +515,10 @@ class BelongsToMany extends Relation
         // children back to their parent using the dictionary and the keys on the
         // the parent models. Then we will return the hydrated models back out.
         foreach ($models as $model) {
-            if (isset($dictionary[$key = $model->getKey()])) {
-                $collection = $this->related->newCollection($dictionary[$key]);
+            
+            $hash = $model->getHashKey()[0];
+            if (isset($dictionary[$hash])) {
+                $collection = $this->related->newCollection($dictionary[$hash]);
 
                 $model->setRelation($relation, $collection);
             }
@@ -538,7 +543,13 @@ class BelongsToMany extends Relation
         $dictionary = [];
 
         foreach ($results as $result) {
-            $dictionary[$result->pivot->$foreign][] = $result;
+
+            $hash = '';
+            foreach($foreign as $id => $key){
+                $hash .= $id . (string)$result->pivot->$key;
+            }
+
+            $dictionary[$hash][] = $result;
         }
 
         return $dictionary;
@@ -1252,27 +1263,41 @@ class BelongsToMany extends Relation
      */
     public function getHasCompareKeys()
     {
-        return $this->getForeignKey();
+        return $this->getForeignKeys();
     }
 
     /**
      * Get the fully qualified foreign key for the relation.
      *
-     * @return string
+     * @return string[]
      */
     public function getForeignKeys()
     {
-        return $this->table.'.'.$this->foreignKey;
+        $list = $this->foreignKey;
+        $table = $this->table.'.';
+        foreach($list as $keyname => $keyvalue){
+
+            $list[$keyname] = $table . $keyvalue;
+        }
+
+        return $list;
     }
 
     /**
      * Get the fully qualified "other key" for the relation.
      *
-     * @return string
+     * @return string[]
      */
-    public function getOtherKey()
+    public function getOtherKeys()
     {
-        return $this->table.'.'.$this->otherKey;
+        $list = $this->otherKey;
+        $table = $this->table.'.';
+        foreach($list as $keyname => $keyvalue){
+
+            $list[$keyname] = $table . $keyvalue;
+        }
+
+        return $list;
     }
 
     /**
