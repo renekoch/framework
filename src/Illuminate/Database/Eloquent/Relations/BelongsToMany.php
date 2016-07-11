@@ -211,6 +211,9 @@ class BelongsToMany extends Relation
 
         $select = $this->getSelectColumns($columns);
 
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder| \Illuminate\Database\Query\Builder $builder
+         */
         $builder = $this->query->applyScopes();
 
         $models = $builder->addSelect($select)->getModels();
@@ -238,7 +241,7 @@ class BelongsToMany extends Relation
      */
     public function paginate($perPage = null, $columns = ['*'], $pageName = 'page', $page = null)
     {
-        $this->query->addSelect($this->getSelectColumns($columns));
+        $this->query->getQuery()->addSelect($this->getSelectColumns($columns));
 
         $paginator = $this->query->paginate($perPage, $columns, $pageName, $page);
 
@@ -257,7 +260,7 @@ class BelongsToMany extends Relation
      */
     public function simplePaginate($perPage = null, $columns = ['*'], $pageName = 'page')
     {
-        $this->query->addSelect($this->getSelectColumns($columns));
+        $this->query->getQuery()->addSelect($this->getSelectColumns($columns));
 
         $paginator = $this->query->simplePaginate($perPage, $columns, $pageName);
 
@@ -275,7 +278,7 @@ class BelongsToMany extends Relation
      */
     public function chunk($count, callable $callback)
     {
-        $this->query->addSelect($this->getSelectColumns());
+        $this->query->getQuery()->addSelect($this->getSelectColumns());
 
         return $this->query->chunk($count, function ($results) use ($callback) {
             $this->hydratePivotRelation($results->all());
@@ -445,6 +448,9 @@ class BelongsToMany extends Relation
      */
     protected function setJoin($query = null)
     {
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder| \Illuminate\Database\Query\Builder $query
+         */
         $query = $query ?: $this->query;
 
         // We need to join to the intermediate table on the related model's primary
