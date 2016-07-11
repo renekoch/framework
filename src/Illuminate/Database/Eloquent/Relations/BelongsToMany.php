@@ -105,6 +105,16 @@ class BelongsToMany extends Relation
     }
 
     /**
+     * Get the relationship for eager loading.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection|Model[]
+     */
+    public function getEager()
+    {
+        return $this->query->get($this->getSelectColumns());
+    }
+
+    /**
      * Set a where clause for a pivot table column.
      *
      * @param  string  $column
@@ -212,7 +222,7 @@ class BelongsToMany extends Relation
         $select = $this->getSelectColumns($columns);
 
         /**
-         * @var \Illuminate\Database\Eloquent\Builder| \Illuminate\Database\Query\Builder $builder
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $builder
          */
         $builder = $this->query->applyScopes();
 
@@ -372,6 +382,9 @@ class BelongsToMany extends Relation
      */
     public function getRelationQueryForSelfJoin(Builder $query, Builder $parent, $columns = ['*'])
     {
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder $query
+         */
         $query->select($columns);
 
         $query->from($this->related->getTable().' as '.$hash = $this->getRelationCountHash());
@@ -457,9 +470,12 @@ class BelongsToMany extends Relation
         // key column with the intermediate table's foreign key for the related
         // model instance. Then we can set the "where" for the parent models.
         $baseTable = $this->related->getTable().'.';
+
+        $joins = [];
         foreach($this->getOtherKeys() as $key => $otherKey){
-            $query->join($this->table, $baseTable . $key, '=', $otherKey);
+            $joins[] = [$baseTable . $key, '=', $otherKey];
         }
+        $query->join($this->table, $joins);
 
         return $this;
     }
@@ -486,7 +502,7 @@ class BelongsToMany extends Relation
      */
     public function addEagerConstraints(array $models)
     {
-        $this->query->getQuery()->whereIn($this->getForeignKeys(), $this->getKeys($models));
+        $this->query->getQuery()->whereList($this->getForeignKeys(), $this->getKeys($models));
     }
 
     /**
@@ -521,7 +537,7 @@ class BelongsToMany extends Relation
         // children back to their parent using the dictionary and the keys on the
         // the parent models. Then we will return the hydrated models back out.
         foreach ($models as $model) {
-            
+
             $hash = $model->getHashKey()[0];
             if (isset($dictionary[$hash])) {
                 $collection = $this->related->newCollection($dictionary[$hash]);
@@ -536,7 +552,7 @@ class BelongsToMany extends Relation
     /**
      * Build model dictionary keyed by the relation's foreign key.
      *
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Database\Eloquent\Collection|\Illuminate\Database\Eloquent\Model[]  $results
      * @return array
      */
     protected function buildDictionary(Collection $results)
@@ -547,12 +563,15 @@ class BelongsToMany extends Relation
         // of the relation so that we will easily and quickly match them to their
         // parents without having a possibly slow inner loops for every models.
         $dictionary = [];
-
         foreach ($results as $result) {
 
+            //clean up pivot data into pivot relation
+            $pivotData = $this->cleanPivotAttributes($result);
+            $result->setRelation('pivot', $this->newExistingPivot($pivotData));
+
             $hash = '';
-            foreach($foreign as $id => $key){
-                $hash .= $id . (string)$result->pivot->$key;
+            foreach($foreign as $modelKey => $pivotKey){
+                $hash .= $modelKey . (string)$result->pivot->$pivotKey;
             }
 
             $dictionary[$hash][] = $result;

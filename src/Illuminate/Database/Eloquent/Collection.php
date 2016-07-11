@@ -92,8 +92,11 @@ class Collection extends BaseCollection implements QueueableCollection
      */
     public function modelKeys()
     {
-        return array_map(function ($m) {
-            return $m->getKey();
+        return array_map(function ($model) {
+            /**
+             * @var Model $model
+             */
+            return $model->getKey();
         }, $this->items);
     }
 
