@@ -3,6 +3,7 @@
 namespace Illuminate\Support;
 
 use ArrayAccess;
+use Traversable;
 use Illuminate\Support\Traits\Macroable;
 
 class Arr
@@ -525,4 +526,50 @@ class Arr
 
         return $filtered;
     }
+
+    /**
+     * Make a hash key out of a list of $attributes or keys
+     *
+     * @param string[] $attributes
+     * @param string[] $keys
+     * @param boolean  $noNullValues
+     *
+     * @return array
+     */
+    public static function buildHash(ArrayAccess $attributes, Traversable $keys, $noNullValues = false)
+    {
+        $keys = (array)$keys;
+        $hash = '';
+        $data = [];
+        foreach ($keys as $keyid => $keyname) {
+            $val = $data[ $keyname ] = self::get($attributes, $keyname);
+            if ($noNullValues && is_null($val)) {
+                return null;
+            }
+            $key = is_numeric($keyid) ? $keyname : $keyid;
+            $hash .= $key.(string)$val;
+        }
+
+        return [$hash, $data];
+    }
+
+    /**
+     * Make a hash key out of a list of $attributes or keys
+     *
+     * @param \Traversable $attributes
+     * @param string[] $keys
+     * @param boolean  $noNullValues
+     *
+     * @return array
+     */
+    public static function buildHashArray(Traversable $list, Traversable $keys, $noNullValues = false){
+        $result = [];
+        foreach($list as $item){
+            $hash = self::buildHash($item, $keys, $noNullValues);
+            if($hash) $result[$hash[0]] = $hash[1];
+        }
+
+        return $result;
+    }
+
 }
