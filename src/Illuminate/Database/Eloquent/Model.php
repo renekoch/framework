@@ -2081,11 +2081,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the value of the model's primary key.
      *
-     * @return mixed
+     * @return array
      */
     public function getKey()
     {
-
         $list = [];
         foreach($this->getKeyName() as $keyname){
             $list[$keyname] = $this->getAttribute($keyname);
@@ -2167,26 +2166,15 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Make a hash key out of a list of $attributes or primary keys
      *
-     * @param string[]|null $attributes
+     * @param string[]|null $keys
      * @param boolean       $noNullValues
      *
      * @return array
      */
-    public function getHashKey($attributes = null, $noNullValues = false)
+    public function getHashKey($keys = null, $noNullValues = false)
     {
-        $attributes = (array)($attributes ?: $this->getKeyName());
-        $hash       = '';
-        $data       = [];
-        foreach ($attributes as $keyid => $keyname) {
-            $val = $data[ $keyname ] = $this->getAttribute($keyname);
-            if ($noNullValues && is_null($val)) {
-                return null;
-            }
-            $key = is_numeric($keyid) ? $keyname : $keyid;
-            $hash .= $key . (string)$val;
-        }
-
-        return [$hash, $data];
+        $keys = (array)($keys ?: $this->getKeyName());
+        return Arr::buildHash($this->getAttributes(), $keys, $noNullValues);
     }
 
     /**
