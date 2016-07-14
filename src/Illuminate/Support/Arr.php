@@ -3,7 +3,7 @@
 namespace Illuminate\Support;
 
 use ArrayAccess;
-use Traversable;
+use \Hamcrest\Core\IsNull;
 use Illuminate\Support\Traits\Macroable;
 
 class Arr
@@ -530,17 +530,31 @@ class Arr
     /**
      * Make a hash key out of a list of $attributes or keys
      *
-     * @param string[] $attributes
-     * @param string[] $keys
-     * @param boolean  $noNullValues
+     * @param string[]|Collection        $attributes
+     * @param string[]|Collection|string $keys
+     * @param boolean                    $noNullValues
      *
      * @return array
      */
-    public static function buildHash(ArrayAccess $attributes, Traversable $keys, $noNullValues = false)
+    public static function buildHash($attributes, $keys, $noNullValues = false)
     {
         $keys = (array)$keys;
         $hash = '';
         $data = [];
+
+        $attributes = $attributes instanceof Collection ? $attributes->all() : (array)$attributes;
+        $keys       = $keys instanceof Collection ? $keys->all() : (array)$keys;
+
+        if (count($keys) == 1) {
+
+            $keyname = reset($keys);
+            $key     = isset($attributes[ $keyname ]) ? $attributes[ $keyname ] : null;
+
+            unset($attributes[ $keyname ]);
+
+            return ($noNullValues && is_null($key)) ? [$key, $attributes] : null;
+        }
+
         foreach ($keys as $keyid => $keyname) {
             $val = $data[ $keyname ] = self::get($attributes, $keyname);
             if ($noNullValues && is_null($val)) {
@@ -550,23 +564,37 @@ class Arr
             $hash .= $key.(string)$val;
         }
 
-        return [$hash, $data];
+        return ($noNullValues && $hash != '') ? [$hash, $data] : null;
     }
 
     /**
      * Make a hash key out of a list of $attributes or keys
      *
-     * @param \Traversable $attributes
-     * @param string[] $keys
-     * @param boolean  $noNullValues
+     * @param array|Collection           $list
+     * @param string[]|Collection|string $keys
+     * @param boolean                    $noNullValues
      *
      * @return array
      */
-    public static function buildHashArray(Traversable $list, Traversable $keys, $noNullValues = false){
+    public static function buildHashArray($list, $keys, $noNullValues = false)
+    {
         $result = [];
-        foreach($list as $item){
-            $hash = self::buildHash($item, $keys, $noNullValues);
-            if($hash) $result[$hash[0]] = $hash[1];
+        //make it backward compatible with pre-composite keys
+        if (count($keys) == 1) {
+            foreach ($list as $item) {
+                $hash = self::buildHash($item, $keys, $noNullValues);
+                if ($hash) {
+                    $result[ $hash[ 0 ] ] = count($hash[ 1 ]) > 0 ? $hash[ 1 ] : $hash[ 0 ];
+                }
+            }
+        }
+        else {
+            foreach ($list as $item) {
+                $hash = self::buildHash($item, $keys, $noNullValues);
+                if ($hash) {
+                    $result[ $hash[ 0 ] ] = $hash[ 1 ];
+                }
+            }
         }
 
         return $result;
