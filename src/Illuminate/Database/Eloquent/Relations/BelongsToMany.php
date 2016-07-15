@@ -962,14 +962,9 @@ class BelongsToMany extends Relation
         $results = [];
         foreach ($records as $id => $attributes) {
 
-            /*
-                          if (! is_array($attributes)) {
-                            list($id, $attributes) = [$attributes, []];
-                        }
-            */
             list($keys, $attributes) = $this->getAttachId($id, $attributes);
 
-            $hash             = Arr::buildHash($keys, $keys)[ 0 ];
+            $hash             = Arr::buildHash($keys, $this->otherKey)[ 0 ];
             $results[ $hash ] = [$keys, $attributes];
         }
 
@@ -1129,25 +1124,25 @@ class BelongsToMany extends Relation
      */
     protected function getAttachId($key, $value, array $attributes = [])
     {
-        $otherKeys = array_values($this->otherKey);
+        $otherKeys = $this->otherKey;
 
         //backwards compability for none composite keys
         if (!is_array($value)) {
-            $value = [$otherKeys[ 0 ] => $value];
+            $value = [reset($otherKeys) => $value];
         }
 
         $keys = [];
-        foreach ($value as $attr) {
+        foreach ($value as $attr => $val) {
             if (isset($otherKeys[ $attr ])) {
-                $keys[ $attr ] = $otherKeys[ $attr ];
+                $keys[ $otherKeys[$attr] ] = $val;
             } else {
-                $attributes[ $attr ] = $otherKeys[ $attr ];
+                $attributes[ $otherKeys[$attr] ] = $val;
             }
         }
 
         //backwards compability for [$key => $attribute[]]
         if (count($otherKeys) === 1 && count($keys) === 0) {
-            $keys = [$otherKeys[ 0 ] => $key];
+            $keys = [reset($otherKeys) => $key];
         }
 
         return [$keys, $attributes];
@@ -1219,17 +1214,23 @@ class BelongsToMany extends Relation
             $ids = [$ids->getKey()];
         }
         elseif (is_array($ids)) {
+            $lookupKeys = array_keys($this->otherKey);
+            $firstId = reset($ids);
+
             //if just one keyset wrap in an array
-            if (array_keys($ids) == array_values($this->otherKey)) {
+            if (array_keys($ids) == $lookupKeys) {
                 $ids = [$ids];
-            } //if an array of none keyset we assume it an array of first otherKey
-            elseif (is_array(reset($ids)) && array_keys($ids) != array_values($this->otherKey)) {
-                $first = reset($this->otherKey);
+            }
+            //if an array of none keyset we assume it an array of first otherKey
+            elseif (!is_array($firstId) || array_keys($firstId) != $lookupKeys) {
+                $firstKey = reset($lookupKeys);
                 foreach ($ids as $pos => $id) {
-                    $ids[ $pos ] = [$first => $id];
+                    $keys = (array)$id;
+                    $ids[ $pos ] = [$firstKey => reset($keys)];
                 }
             }
         }
+
         //else if any other none false value wrap in an array
         elseif ($ids) {
             $ids = [reset($this->otherKey) => $ids];
@@ -1307,8 +1308,11 @@ class BelongsToMany extends Relation
         foreach ($this->pivotWheres as $whereArgs) {
             call_user_func_array([$query, 'where'], $whereArgs);
         }
+        foreach ($this->foreignKey as $key => $value) {
+            $query->where($value,  $this->parent->getAttribute($key));
+        }
 
-        return $query->where($this->foreignKey, $this->parent->getKey());
+        return $query;
     }
 
     /**

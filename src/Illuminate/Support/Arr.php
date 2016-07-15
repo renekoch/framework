@@ -564,7 +564,7 @@ class Arr
             $hash .= $key.(string)$val;
         }
 
-        return ($noNullValues && $hash != '') ? [$hash, $data] : null;
+        return ($noNullValues && $hash == '') ? null : [$hash, $data];
     }
 
     /**

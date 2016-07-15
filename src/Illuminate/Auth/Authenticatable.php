@@ -21,7 +21,8 @@ trait Authenticatable
      */
     public function getAuthIdentifier()
     {
-        return $this->getKey();
+        $key = $this->getKey();
+        return is_array($key) ? reset($key) : $key;
     }
 
     /**

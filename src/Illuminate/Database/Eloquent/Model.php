@@ -668,22 +668,25 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Reload a fresh model instance from the database.
      *
-     * @param  array|string  $with
+     * @param  array|string $with
+     *
      * @return $this|null
      */
     public function fresh($with = [])
     {
-        if (! $this->exists) {
+        if (!$this->exists) {
             return null;
         }
 
         if (is_string($with)) {
             $with = func_get_args();
         }
+        $query = static::with($with);
+        foreach ($this->getKey() as $key => $value) {
+            $query->where($key, $value);
+        }
 
-        $key = $this->getKeyName();
-
-        return static::with($with)->where($key, $this->getKey())->first();
+        return $query->first();
     }
 
     /**
@@ -2100,7 +2103,8 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getQueueableId()
     {
-        return $this->getKey();
+        $keys = $this->getKey();
+        return $keys;
     }
 
     /**

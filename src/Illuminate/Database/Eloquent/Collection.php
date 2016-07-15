@@ -23,7 +23,25 @@ class Collection extends BaseCollection implements QueueableCollection
         }
 
         return Arr::first($this->items, function ($itemKey, $model) use ($key) {
-            return $model->getKey() == $key;
+            /**
+             * @var Model $model
+             */
+
+            $keys = $model->getKey();
+
+            if (is_array($key)){
+
+                if (!count($key)) return false;
+
+                foreach ($key as $singleKey => $val){
+                    if(!isset($keys[$singleKey]))return false;
+                    if ($keys[$singleKey] != $val) return false;
+                }
+
+                return true;
+            }
+
+            return reset($keys) == $key;
         }, $default);
     }
 
