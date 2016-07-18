@@ -899,15 +899,19 @@ class BelongsToMany extends Relation
           'updated'  => [],
         ];
 
-        if ($ids instanceof Collection) {
+        if (is_array($ids) && array_keys($ids) == array_keys($this->otherKey)){
+
+            $ids = [$ids];
+        }
+
+        elseif ($ids instanceof Collection) {
             $ids = $ids->modelKeys();
         }
 
         // First we need to attach any of the associated models that are not currently
         // in this joining table. We'll spin through the given IDs, checking to see
         // if they exist in the array of current ones, and if not we will insert.
-        //        $current = $this->newPivotQuery()->pluck($this->otherKey);
-        $current = Arr::buildHashArray($this->getQuery()->getQuery()->select($this->otherKey)->get(), $this->otherKey, true);
+        $current = $this->getCurrentOtherKeys();
 
 
         // hash keyed array
@@ -951,6 +955,23 @@ class BelongsToMany extends Relation
     }
 
     /**
+     * get list of otherkeys
+     *
+     * @return array
+     */
+    protected function getCurrentOtherKeys(){
+
+        $select= [];
+        $keys = [];
+        foreach($this->otherKey as $id => $column){
+            $keys[] = $id;
+            $select[] = $column .' as '.$id;
+        }
+
+        return Arr::buildHashArray($this->newPivotQuery()->select($select)->get(), $keys, true);
+    }
+
+    /**
      * Format the sync list so that it is keyed by ID.
      *
      * @param  array $records
@@ -959,12 +980,14 @@ class BelongsToMany extends Relation
      */
     protected function formatSyncList(array $records)
     {
-        $results = [];
+        $results   = [];
+        $otherKeys = array_keys($this->otherKey);
         foreach ($records as $id => $attributes) {
 
             list($keys, $attributes) = $this->getAttachId($id, $attributes);
 
-            $hash             = Arr::buildHash($keys, $this->otherKey)[ 0 ];
+            $hash = Arr::buildHash($keys, $otherKeys)[ 0 ];
+
             $results[ $hash ] = [$keys, $attributes];
         }
 
@@ -1050,11 +1073,19 @@ class BelongsToMany extends Relation
 
         if ($keys instanceof Model) {
             $keys = [$keys->getKey()];
-        } elseif ($keys instanceof Collection) {
+        }
+        elseif ($keys instanceof Collection) {
             $keys = $keys->modelKeys();
-        } elseif (!is_array($keys)) {
+        }
+        elseif (is_array($keys)) {
+            if(array_keys($keys) == array_keys($this->otherKey)){
+                $keys = [$keys];
+            }
+        }
+        else{
             //            $keys = $this->related->getKeyName();
-            $keys = [$keys];
+            $otherKeys = array_keys($this->otherKey);
+            $keys = [reset($otherKeys) => $keys];
         }
 
         $query = $this->newPivotStatement();
@@ -1164,7 +1195,7 @@ class BelongsToMany extends Relation
         }
 
         foreach ($this->otherKey as $relatedKey => $column) {
-            $record[ $column ] = $keys[ $relatedKey ];
+            $record[ $column ] = isset($keys[ $relatedKey ]) ? $keys[ $relatedKey ] : $keys[ $column ];
         }
 
         // If the record needs to have creation and update timestamps, we will make
@@ -1222,7 +1253,7 @@ class BelongsToMany extends Relation
                 $ids = [$ids];
             }
             //if an array of none keyset we assume it an array of first otherKey
-            elseif (!is_array($firstId) || array_keys($firstId) != $lookupKeys) {
+            elseif (!is_array($firstId) ) {
                 $firstKey = reset($lookupKeys);
                 foreach ($ids as $pos => $id) {
                     $keys = (array)$id;
@@ -1245,7 +1276,9 @@ class BelongsToMany extends Relation
         $query = $this->newPivotQuery();
 
         if (count($ids) > 0) {
-            $query->whereList($this->otherKey, $ids);
+            $keys = array_keys(reset($ids));
+            $values = array_values($this->otherKey);
+            $query->whereList($values == $keys ? $values: $this->otherKey, $ids);
         }
 
         // Once we have all of the conditions set on the statement, we are ready
@@ -1498,5 +1531,31 @@ class BelongsToMany extends Relation
     public function getRelationName()
     {
         return $this->relationName;
+    }
+
+    /**
+     * @param bool $columnName
+     *
+     * @return string
+     */
+    protected function getSingleOtherKey($columnName = false){
+
+        foreach($this->otherKey as $key => $column){
+           return $columnName ? $column : $key;
+        }
+        return null;
+    }
+
+    /**
+     * @param bool $columnName
+     *
+     * @return string
+     */
+    protected function getSingleForeignKey($columnName = false){
+
+        foreach($this->otherKey as $key => $column){
+            return $columnName ? $column : $key;
+        }
+        return null;
     }
 }

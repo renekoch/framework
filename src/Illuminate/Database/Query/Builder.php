@@ -1021,6 +1021,9 @@ class Builder
      */
     public function whereList($fields, $idList, $not = false)
     {
+
+        $fields = Arr::isAssoc($fields) ? $fields : array_combine($fields, $fields);
+
         //makes a where statement that looks like:
         //( (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) ... )
         $makeWhere = function ($query) use ($fields, $idList, $not) {
