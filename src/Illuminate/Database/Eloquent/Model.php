@@ -767,7 +767,8 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
 
             if (is_null($localKey)) {
-                $localKey = $base.$foreignKey;
+                $localKey = $this->getKeyName();
+                $localKey = reset($localKey);
             }
 
             $foreignKey = [$foreignKey => $localKey];
@@ -776,7 +777,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
             $foreignKey = [];
             foreach ($this->getKeyName() as $keyname) {
-                $foreignKey[ $keyname ] = $base.$keyname;
+                $foreignKey[ $base.$keyname ] = $keyname;
             }
         }
 
@@ -952,7 +953,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
             //if no $localKey try to guess the most likely key
             if (!$localKey) {
-                $localKey = $instance->getKeyName();
+                $localKey = $this->getKeyName();
                 $localKey = reset($localKey);
             }
 
@@ -962,7 +963,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         //if non keys provided use primary keys
         elseif (is_null($foreignKey)) {
             $foreignKey = [];
-            foreach ($instance->getKeyName() as $keyname) {
+            foreach ($this->getKeyName() as $keyname) {
                 $foreignKey[ $base.$keyname ] = $keyname;
             }
         }
