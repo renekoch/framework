@@ -260,7 +260,7 @@ class BelongsTo extends Relation
      */
     public function associate($model)
     {
-        foreach($this->constraintKeys as $foreignKey => $otherKey) {
+        foreach($this->constraintKeys as $otherKey => $foreignKey) {
             $otherKey = ($model instanceof Model ? $model->getAttribute($otherKey) : $model);
             $this->parent->setAttribute($foreignKey, $otherKey);
         }
@@ -279,7 +279,7 @@ class BelongsTo extends Relation
      */
     public function dissociate()
     {
-        foreach($this->constraintKeys as $foreignKey => $otherKey) {
+        foreach($this->constraintKeys as $otherKey => $foreignKey) {
             $this->parent->setAttribute($foreignKey, null);
         }
 
