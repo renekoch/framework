@@ -929,9 +929,8 @@ class BelongsToMany extends Relation
                 if (isset($records[ $hash ])) {
                     continue;
                 }
-                list($keys) = $records[ $hash ];
-                $detach[] = $keys;
-                $changes[ 'detached' ][] = ctype_xdigit((string)$hash) ? (int)$hash : $keys;
+                $detach[] = $current[ $hash ];
+                $changes[ 'detached' ][] = ctype_xdigit((string)$hash) ? (int)$hash : $current[ $hash ];
             }
 
             if (count($detach) > 0) {
@@ -1159,21 +1158,21 @@ class BelongsToMany extends Relation
 
         //backwards compability for none composite keys
         if (!is_array($value)) {
-            $value = [reset($otherKeys) => $value];
+            $value = [$this->getSingleOtherKey() => $value];
         }
 
         $keys = [];
         foreach ($value as $attr => $val) {
             if (isset($otherKeys[ $attr ])) {
-                $keys[ $otherKeys[$attr] ] = $val;
+                $keys[ $attr ] = $val;
             } else {
-                $attributes[ $otherKeys[$attr] ] = $val;
+                $attributes[ $attr ] = $val;
             }
         }
 
         //backwards compability for [$key => $attribute[]]
         if (count($otherKeys) === 1 && count($keys) === 0) {
-            $keys = [reset($otherKeys) => $key];
+            $keys = [$this->getSingleOtherKey() => $key];
         }
 
         return [$keys, $attributes];
