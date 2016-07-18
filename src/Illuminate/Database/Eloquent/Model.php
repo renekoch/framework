@@ -1526,8 +1526,11 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         }
 
         $this->incrementOrDecrementAttributeValue($column, $amount, $method);
+        foreach($this->getKey() as $key => $val){
+            $query->where($key, $val);
+        }
 
-        return $query->where($this->getKeyName(), $this->getKey())->{$method}($column, $amount, $extra);
+        return $query->{$method}($column, $amount, $extra);
     }
 
     /**
