@@ -24,20 +24,18 @@ abstract class MorphOneOrMany extends HasOneOrMany
     /**
      * Create a new morph one or many relationship instance.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $type
-     * @param  string  $id
-     * @param  string  $localKey
-     * @return void
+     * @param  \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Model   $parent
+     * @param  string                                $type
+     * @param  array                                 $constraintKeys
      */
-    public function __construct(Builder $query, Model $parent, $type, $id, $localKey)
+    public function __construct(Builder $query, Model $parent, $type, array $constraintKeys)
     {
         $this->morphType = $type;
 
         $this->morphClass = $parent->getMorphClass();
 
-        parent::__construct($query, $parent, $id, $localKey);
+        parent::__construct($query, $parent, $constraintKeys);
     }
 
     /**

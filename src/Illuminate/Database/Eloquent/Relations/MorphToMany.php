@@ -34,20 +34,22 @@ class MorphToMany extends BelongsToMany
     /**
      * Create a new morph to many relationship instance.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $name
-     * @param  string  $table
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
-     * @param  string  $relationName
-     * @param  bool  $inverse
+     * @param  \Illuminate\Database\Eloquent\Builder $query
+     * @param  \Illuminate\Database\Eloquent\Model   $parent
+     * @param  string                                $name
+     * @param  string                                $table
+     * @param  string[]                              $foreignKey
+     * @param  string[]                              $otherKey
+     * @param  string                                $relationName
+     * @param  string                                $type
+     * @param  bool                                  $inverse
+     *
      * @return void
      */
-    public function __construct(Builder $query, Model $parent, $name, $table, $foreignKey, $otherKey, $relationName = null, $inverse = false)
+    public function __construct(Builder $query, Model $parent, $name, $table, $foreignKey, $otherKey, $relationName = null, $type = null, $inverse = false)
     {
-        $this->inverse = $inverse;
-        $this->morphType = $name.'_type';
+        $this->inverse    = $inverse;
+        $this->morphType  = $type ?: $name.'_type';
         $this->morphClass = $inverse ? $query->getModel()->getMorphClass() : $parent->getMorphClass();
 
         parent::__construct($query, $parent, $table, $foreignKey, $otherKey, $relationName);
@@ -98,13 +100,13 @@ class MorphToMany extends BelongsToMany
     /**
      * Create a new pivot attachment record.
      *
-     * @param  int   $id
+     * @param  array $keys
      * @param  bool  $timed
      * @return array
      */
-    protected function createAttachRecord($id, $timed)
+    protected function createAttachRecord($keys, $timed)
     {
-        $record = parent::createAttachRecord($id, $timed);
+        $record = parent::createAttachRecord($keys, $timed);
 
         return Arr::add($record, $this->morphType, $this->morphClass);
     }

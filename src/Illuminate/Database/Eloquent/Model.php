@@ -641,11 +641,11 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public static function onWriteConnection()
     {
         /**
-         * @var Model $instance
+         * @var \Illuminate\Database\Query\Builder $query
          */
-        $instance = new static;
+        $query = (new static)->newQuery();
 
-        return $instance->newQuery()->useWritePdo();
+        return $query->useWritePdo();
     }
 
     /**
@@ -767,11 +767,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         if (is_string($foreignKey)) {
 
-            if (is_null($localKey)) {
-                $localKey = head($this->getKeyName());
-            }
-
-            $foreignKey = [$foreignKey => $localKey];
+            $foreignKey = [$foreignKey => $localKey?: head($this->getKeyName())];
         }
         elseif (is_null($foreignKey)) {
 
@@ -807,27 +803,24 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
          * @var Model $instance
          */
         $instance = new $related;
-        $table    = $instance->getTable().'.';
+        $table = $instance->getTable() .'.';
 
+        //backwards compability for pre composite keys
+        if(is_string($ids)){
+            $primaryKey = head($this->getKeyName());
+            $ids = [$ids => $localKeys?:$name .'_'.$primaryKey];
+        }
+
+        // Here we will gather up the morph type and ID for the relationship so that we
+        // can properly query the intermediate table of a relation. Finally, we will
+        // get the table and create the relationship instances for the developers.
         list($type, $ids) = $this->getMorphs($name, $type, $ids);
 
-
-        foreach ($ids as $idName => $id) {
-            $ids[ $idName ] = $table.$id;
+        foreach($ids as $localKey => $foreignKey){
+            $ids[$table.$localKey] = $foreignKey;
         }
 
-        /**
-         * todo: might be wrong
-         */
-        if (is_string($localKeys)){
-            $localKeys = [head(array_keys($ids)) => $localKeys];
-        }
-        /**
-         * todo: might be wrong
-         */
-        $localKeys = $localKeys ?: $this->getKeyName();
-
-        return new MorphOne($instance->newQuery(), $this, $table.$type, $ids, $localKeys);
+        return new MorphOne($instance->newQuery(), $this, $table.$type, $ids);
     }
 
     /**
@@ -891,7 +884,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      *
      * @param  string  $name
      * @param  string  $type
-     * @param  string  $id
+     * @param  string|string[]  $id
      * @return \Illuminate\Database\Eloquent\Relations\MorphTo
      */
     public function morphTo($name = null, $type = null, $id = null)
@@ -906,15 +899,20 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
             $name = Str::snake($caller['function']);
         }
 
+        if(is_string($id)){
+            $id = [$id => 'id'];
+        }
+        elseif(!is_array($id)){
+            $id = [$name . '_id' => 'id'];
+        }
+
         list($type, $id) = $this->getMorphs($name, $type, $id);
 
         // If the type value is null it is probably safe to assume we're eager loading
         // the relationship. In this case we'll just pass in a dummy query where we
         // need to remove any eager loads that may already be defined on a model.
         if (empty($class = $this->$type)) {
-            return new MorphTo(
-                $this->newQuery()->setEagerLoads([]), $this, [$id=> null], $type, $name
-            );
+            $query = $this->newQuery()->setEagerLoads([]);
         }
 
         // If we are not eager loading the relationship we will essentially treat this
@@ -927,11 +925,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
              * @var Model $instance
              */
             $instance = new $class;
-
-            return new MorphTo(
-                $instance->newQuery(), $this, $id, $instance->getKeyName(), $type, $name
-            );
+            $query = $instance->newQuery();
         }
+
+        return new MorphTo($query, $this, $id, $type, $name);
     }
 
     /**
@@ -1024,30 +1021,38 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Define a polymorphic one-to-many relationship.
      *
-     * @param  string  $related
-     * @param  string  $name
-     * @param  string  $type
-     * @param  string  $id
-     * @param  string  $localKey
+     * @param  string       $related
+     * @param  string       $name
+     * @param  string       $type
+     * @param  string|array $ids
+     * @param  string       $localKeys
+     *
      * @return \Illuminate\Database\Eloquent\Relations\MorphMany
      */
-    public function morphMany($related, $name, $type = null, $id = null, $localKey = null)
+    public function morphMany($related, $name, $type = null, $ids = null, $localKeys = null)
     {
         /**
          * @var Model $instance
          */
         $instance = new $related;
+        $table    = $instance->getTable().'.';
+
+        //backwards compability for pre composite keys
+        if (is_string($ids)) {
+            $key = head($this->getKeyName());
+            $ids = [$ids => $localKeys ?: $name.'_'.$key];
+        }
 
         // Here we will gather up the morph type and ID for the relationship so that we
         // can properly query the intermediate table of a relation. Finally, we will
         // get the table and create the relationship instances for the developers.
-        list($type, $id) = $this->getMorphs($name, $type, $id);
+        list($type, $ids) = $this->getMorphs($name, $type, $ids);
 
-        $table = $instance->getTable();
+        foreach ($ids as $localKey => $key) {
+            $ids[ $table.$localKey ] = $key;
+        }
 
-        $localKey = $localKey ?: $this->getKeyName();
-
-        return new MorphMany($instance->newQuery(), $this, $table.'.'.$type, $table.'.'.$id, $localKey);
+        return new MorphMany($instance->newQuery(), $this, $table.$type, $ids);
     }
 
     /**
@@ -1105,22 +1110,25 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Define a polymorphic many-to-many relationship.
      *
-     * @param  string  $related
-     * @param  string  $name
-     * @param  string  $table
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
-     * @param  bool  $inverse
+     * @param  string          $related
+     * @param  string          $name
+     * @param  string          $table
+     * @param  string|string[] $foreignKey
+     * @param  string|string[] $otherKey
+     * @param  string          $type
+     * @param  bool            $inverse
+     *
      * @return \Illuminate\Database\Eloquent\Relations\MorphToMany
      */
-    public function morphToMany($related, $name, $table = null, $foreignKey = null, $otherKey = null, $inverse = false)
+    public function morphToMany($related, $name, $table = null, $foreignKey = null, $otherKey = null, $type = null, $inverse = false)
     {
         $caller = $this->getBelongsToManyCaller();
 
         // First, we will need to determine the foreign key and "other key" for the
         // relationship. Once we have determined the keys we will make the query
         // instances, as well as the relationship instances we need for these.
-        $foreignKey = $foreignKey ?: $name.'_id';
+
+        list($type, $foreignKey) = $this->getMorphs($name, $type, $foreignKey);
 
         /**
          * @var Model $instance
@@ -1136,23 +1144,22 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         $table = $table ?: Str::plural($name);
 
-        return new MorphToMany(
-            $query, $this, $name, $table, $foreignKey,
-            $otherKey, $caller, $inverse
-        );
+        return new MorphToMany($query, $this, $name, $table, $foreignKey, $otherKey, $caller, $type, $inverse);
     }
 
     /**
      * Define a polymorphic, inverse many-to-many relationship.
      *
-     * @param  string  $related
-     * @param  string  $name
-     * @param  string  $table
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
+     * @param  string $related
+     * @param  string $name
+     * @param  string $table
+     * @param  string $foreignKey
+     * @param  string $otherKey
+     * @param  string $type
+     *
      * @return \Illuminate\Database\Eloquent\Relations\MorphToMany
      */
-    public function morphedByMany($related, $name, $table = null, $foreignKey = null, $otherKey = null)
+    public function morphedByMany($related, $name, $table = null, $foreignKey = null, $otherKey = null, $type = null)
     {
         $foreignKey = $foreignKey ?: $this->getForeignKeys();
 
@@ -1161,7 +1168,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // of the morph-to-many method since we're figuring out these inverses.
         $otherKey = $otherKey ?: $name.'_id';
 
-        return $this->morphToMany($related, $name, $table, $foreignKey, $otherKey, true);
+        return $this->morphToMany($related, $name, $table, $foreignKey, $otherKey, $type, true);
     }
 
     /**
@@ -2020,7 +2027,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      * Create a new Eloquent query builder for the model.
      *
      * @param  \Illuminate\Database\Query\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder|static
+     * @return static|\Illuminate\Database\Eloquent\Builder
      */
     public function newEloquentBuilder($query)
     {
@@ -2215,13 +2222,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     protected function getMorphs($name, $type, $ids)
     {
         $type = $type ?: $name.'_type';
-
         if (is_string($ids)) {
             $ids = [head($this->getKeyName()) => $ids];
-        } elseif (!$ids) {
+        }
+        elseif (!is_array($ids)) {
             $ids = [];
-            foreach ($this->getKeyName() as $name) {
-                $ids[ $name ] = $name.'_'.$name;
+            foreach ($this->getKeyName() as $key) {
+                $ids[ $name.'_'.$key ] = $key;
             }
         }
 
@@ -2235,15 +2242,18 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getMorphClass()
     {
+        if ($this->morphClass) {
+            return $this->morphClass;
+        }
         $morphMap = Relation::morphMap();
 
         $class = static::class;
 
-        if (! empty($morphMap) && in_array($class, $morphMap)) {
+        if (!empty($morphMap) && in_array($class, $morphMap)) {
             return array_search($class, $morphMap, true);
         }
 
-        return $this->morphClass ?: $class;
+        return $class;
     }
 
     /**
