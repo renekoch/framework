@@ -6,6 +6,7 @@ use BadMethodCallException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Arr;
 
 class MorphTo extends BelongsTo
 {
@@ -42,17 +43,16 @@ class MorphTo extends BelongsTo
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Model  $parent
-     * @param  string  $foreignKey
-     * @param  string  $otherKey
+     * @param  string[]  $constraintKeys
      * @param  string  $type
      * @param  string  $relation
      * @return void
      */
-    public function __construct(Builder $query, Model $parent, $foreignKey, $otherKey, $type, $relation)
+    public function __construct(Builder $query, Model $parent, $constraintKeys, $type, $relation)
     {
         $this->morphType = $type;
 
-        parent::__construct($query, $parent, $foreignKey, $otherKey, $relation);
+        parent::__construct($query, $parent, $constraintKeys, $relation);
     }
 
     /**
@@ -62,7 +62,7 @@ class MorphTo extends BelongsTo
      */
     public function getResults()
     {
-        if (! $this->otherKey) {
+        if (empty($this->constraintKeys)) {
             return;
         }
 
@@ -77,6 +77,7 @@ class MorphTo extends BelongsTo
      */
     public function addEagerConstraints(array $models)
     {
+
         $this->buildDictionary($this->models = Collection::make($models));
     }
 
@@ -88,9 +89,12 @@ class MorphTo extends BelongsTo
      */
     protected function buildDictionary(Collection $models)
     {
+        $foreignKeys = array_keys($this->constraintKeys);
         foreach ($models as $model) {
             if ($model->{$this->morphType}) {
-                $this->dictionary[$model->{$this->morphType}][$model->{$this->foreignKey}][] = $model;
+
+                $hash = Arr::buildHash($model, $foreignKeys)[0];
+                $this->dictionary[$model->{$this->morphType}][$hash][] = $model;
             }
         }
     }
@@ -116,7 +120,9 @@ class MorphTo extends BelongsTo
      */
     public function associate($model)
     {
-        $this->parent->setAttribute($this->foreignKey, $model->getKey());
+        foreach($this->constraintKeys as $foreignKey => $otherKey){
+            $this->parent->setAttribute($foreignKey, $model->getAttribute($otherKey));
+        }
 
         $this->parent->setAttribute($this->morphType, $model->getMorphClass());
 
@@ -130,8 +136,9 @@ class MorphTo extends BelongsTo
      */
     public function dissociate()
     {
-        $this->parent->setAttribute($this->foreignKey, null);
-
+        foreach($this->constraintKeys as $foreignKey => $otherKey){
+            $this->parent->setAttribute($foreignKey, null);
+        }
         $this->parent->setAttribute($this->morphType, null);
 
         return $this->parent->setRelation($this->relation, null);
@@ -162,9 +169,15 @@ class MorphTo extends BelongsTo
      */
     protected function matchToMorphParents($type, Collection $results)
     {
+        $foreignKeys = array_keys($this->constraintKeys);
         foreach ($results as $result) {
-            if (isset($this->dictionary[$type][$result->getKey()])) {
-                foreach ($this->dictionary[$type][$result->getKey()] as $model) {
+
+            $hash = Arr::buildHash($result, $foreignKeys)[0];
+            if (isset($this->dictionary[$type][$hash])) {
+                foreach ($this->dictionary[$type][$hash] as $model) {
+                    /**
+                     * @var Model $model
+                     */
                     $model->setRelation($this->relation, $result);
                 }
             }
@@ -181,27 +194,42 @@ class MorphTo extends BelongsTo
     {
         $instance = $this->createModelByType($type);
 
-        $key = $instance->getTable().'.'.$instance->getKeyName();
+        $table =$instance->getTable().'.';
+        $keys = [];
 
+        foreach($instance->getKeyName() as $foreignKey){
+            $keys[$foreignKey] =  $table.$foreignKey;
+        }
+
+        /**
+         * @var \Illuminate\Database\Query\Builder|Builder $query
+         */
         $query = $this->replayMacros($instance->newQuery())
             ->mergeModelDefinedRelationConstraints($this->getQuery())
             ->with($this->getQuery()->getEagerLoads());
 
-        return $query->whereIn($key, $this->gatherKeysByType($type)->all())->get();
+        return $query->whereList($keys, $this->gatherKeysByType($type))->get();
     }
 
     /**
      * Gather all of the foreign keys for a given type.
      *
      * @param  string  $type
-     * @return array
+     * @return \Illuminate\Support\Collection
      */
     protected function gatherKeysByType($type)
     {
-        $foreign = $this->foreignKey;
+        $foreignKeys = array_keys($this->constraintKeys);
 
-        return collect($this->dictionary[$type])->map(function ($models) use ($foreign) {
-            return head($models)->{$foreign};
+        return collect($this->dictionary[$type])->map(function ($models) use ($foreignKeys) {
+
+            $model = head($models);
+            $result = [];
+            foreach($foreignKeys as $foreignKey){
+                $result[$foreignKey] = $model->{$foreignKey};
+            }
+
+            return $result;
         })->values()->unique();
     }
 

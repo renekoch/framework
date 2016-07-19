@@ -5,6 +5,7 @@ namespace Illuminate\Support;
 use ArrayAccess;
 use \Hamcrest\Core\IsNull;
 use Illuminate\Support\Traits\Macroable;
+use \Illuminate\Database\Eloquent\Model;
 
 class Arr
 {
@@ -542,8 +543,16 @@ class Arr
         $hash = '';
         $data = [];
 
-        $attributes = $attributes instanceof Collection ? $attributes->all() : (array)$attributes;
-        $keys       = $keys instanceof Collection ? $keys->all() : (array)$keys;
+        if ($attributes instanceof Model) {
+            $attributes = $attributes->getAttributes();
+        }
+        elseif ($attributes instanceof Collection) {
+            $attributes = $attributes->all();
+        }
+        else {
+            $attributes = (array)$attributes;
+        }
+        $keys = $keys instanceof Collection ? $keys->all() : (array)$keys;
 
         if (count($keys) == 1) {
 

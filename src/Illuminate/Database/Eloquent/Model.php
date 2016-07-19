@@ -7,6 +7,7 @@ use DateTime;
 use Exception;
 use ArrayAccess;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 use LogicException;
 use JsonSerializable;
 use DateTimeInterface;
@@ -767,8 +768,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
 
             if (is_null($localKey)) {
-                $localKey = $this->getKeyName();
-                $localKey = reset($localKey);
+                $localKey = head($this->getKeyName());
             }
 
             $foreignKey = [$foreignKey => $localKey];
@@ -793,27 +793,41 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Define a polymorphic one-to-one relationship.
      *
-     * @param  string  $related
-     * @param  string  $name
-     * @param  string  $type
-     * @param  string  $id
-     * @param  string  $localKey
+     * @param  string       $related
+     * @param  string       $idName
+     * @param  string       $type
+     * @param  string|array $ids
+     * @param  string|array $localKeys
+     *
      * @return \Illuminate\Database\Eloquent\Relations\MorphOne
      */
-    public function morphOne($related, $name, $type = null, $id = null, $localKey = null)
+    public function morphOne($related, $name, $type = null, $ids = null, $localKeys = null)
     {
         /**
          * @var Model $instance
          */
         $instance = new $related;
+        $table    = $instance->getTable().'.';
 
-        list($type, $id) = $this->getMorphs($name, $type, $id);
+        list($type, $ids) = $this->getMorphs($name, $type, $ids);
 
-        $table = $instance->getTable();
 
-        $localKey = $localKey ?: $this->getKeyName();
+        foreach ($ids as $idName => $id) {
+            $ids[ $idName ] = $table.$id;
+        }
 
-        return new MorphOne($instance->newQuery(), $this, $table.'.'.$type, $table.'.'.$id, $localKey);
+        /**
+         * todo: might be wrong
+         */
+        if (is_string($localKeys)){
+            $localKeys = [head(array_keys($ids)) => $localKeys];
+        }
+        /**
+         * todo: might be wrong
+         */
+        $localKeys = $localKeys ?: $this->getKeyName();
+
+        return new MorphOne($instance->newQuery(), $this, $table.$type, $ids, $localKeys);
     }
 
     /**
@@ -847,8 +861,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)){
             //if no $otherKey try to guess the most likely key
             if (!$otherKey){
-                $otherKey = $instance->getKeyName();
-                $otherKey = reset($otherKey);
+                $otherKey = head($instance->getKeyName());
             }
 
             $keys = [$foreignKey => $otherKey];
@@ -900,7 +913,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // need to remove any eager loads that may already be defined on a model.
         if (empty($class = $this->$type)) {
             return new MorphTo(
-                $this->newQuery()->setEagerLoads([]), $this, $id, null, $type, $name
+                $this->newQuery()->setEagerLoads([]), $this, [$id=> null], $type, $name
             );
         }
 
@@ -953,8 +966,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
             //if no $localKey try to guess the most likely key
             if (!$localKey) {
-                $localKey = $this->getKeyName();
-                $localKey = reset($localKey);
+                $localKey = head($this->getKeyName());
             }
 
             $foreignKey = [$foreignKey => $localKey];
@@ -1061,8 +1073,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // relationship. Once we have determined the keys we'll make the query
         // instances as well as the relationship instances we need for this.
         if(is_string($foreignKey)){
-            $keys = $this->getKeyName();
-            $foreignKey = [reset($keys) => $foreignKey];
+            $foreignKey = [head($this->getKeyName()) => $foreignKey];
         }
         $foreignKey = $foreignKey?:$this->getForeignKeys();
 
@@ -1072,8 +1083,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         $instance = new $related;
 
         if(is_string($otherKey)){
-            $keys = $instance->getKeyName();
-            $otherKey = [reset($keys) => $otherKey];
+            $otherKey = [head($instance->getKeyName()) => $otherKey];
         }
         $otherKey = $otherKey ?: $instance->getForeignKeys();
 
@@ -1223,7 +1233,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // correct set of attributes in case the developers wants to check these.
         $key = $instance->getKeyName();
 
-        foreach ($instance->whereIn($key, $ids)->get() as $model) {
+        foreach ($instance->newQuery()->whereList($key, $ids)->get() as $model) {
             /**
              * @var Model $model
              */
@@ -1766,9 +1776,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function insertAndSetId(Builder $query, $attributes)
     {
-        $keyName = $this->getKeyName();
-        $keyName = reset($keyName);
-
+        $keyName = head($this->getKeyName());
         $id = $query->insertGetId($attributes, $keyName);
 
         $this->setAttribute($keyName, $id);
@@ -2198,18 +2206,26 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the polymorphic relationship columns.
      *
-     * @param  string  $name
-     * @param  string  $type
-     * @param  string  $id
+     * @param  string               $name
+     * @param  string               $type
+     * @param  string|string[]|null $ids
+     *
      * @return array
      */
-    protected function getMorphs($name, $type, $id)
+    protected function getMorphs($name, $type, $ids)
     {
         $type = $type ?: $name.'_type';
 
-        $id = $id ?: $name.'_id';
+        if (is_string($ids)) {
+            $ids = [head($this->getKeyName()) => $ids];
+        } elseif (!$ids) {
+            $ids = [];
+            foreach ($this->getKeyName() as $name) {
+                $ids[ $name ] = $name.'_'.$name;
+            }
+        }
 
-        return [$type, $id];
+        return [$type, $ids];
     }
 
     /**
@@ -2960,8 +2976,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         if ($this->getIncrementing()) {
 
-            $keys = $this->getKeyName();
-            $keyname = reset($keys);
+            $keyname = head($this->getKeyName());
 
             if (!isset($this->casts[$keyname])){
                 $this->casts[$keyname] = $this->keyType;

@@ -1014,14 +1014,13 @@ class Builder
      * Add a basic where clause built from key pairs in $idList to the query.
      *
      * @param array   $fields
-     * @param array[] $idList
+     * @param array[]|Collection  $idList
      * @param bool    $not
      *
      * @return Builder
      */
     public function whereList($fields, $idList, $not = false)
     {
-
         $fields = Arr::isAssoc($fields) ? $fields : array_combine($fields, $fields);
 
         //makes a where statement that looks like:
@@ -1038,6 +1037,10 @@ class Builder
                      * @var  Builder $query
                      */
                     foreach ($fields as $key => $field) {
+
+                        if(is_numeric($key)){
+                            $key = $field;
+                        }
 
                         if (!isset($values[ $key ])) {
                             throw new \RuntimeException('key field mismatch');
