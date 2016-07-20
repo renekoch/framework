@@ -7,7 +7,6 @@ use DateTime;
 use Exception;
 use ArrayAccess;
 use Carbon\Carbon;
-use Illuminate\Database\Query\Builder;
 use LogicException;
 use JsonSerializable;
 use DateTimeInterface;
