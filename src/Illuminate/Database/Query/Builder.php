@@ -1013,24 +1013,31 @@ class Builder
     /**
      * Add a basic where clause built from key pairs in $idList to the query.
      *
-     * @param array   $fields
-     * @param array[]|Collection  $idList
-     * @param bool    $not
+     * @param array              $keys
+     * @param array[]|Collection $keyList
+     * @param string             $boolean
+     * @param bool               $not
      *
      * @return Builder
      */
-    public function whereList($fields, $idList, $not = false)
+    public function whereList($keys, $keyList, $boolean = 'and', $not = false)
     {
-        $fields = Arr::isAssoc($fields) ? $fields : array_combine($fields, $fields);
+        //optimize: Use whereIn when only one key
+        if (count($keys) === 1) {
+            return $this->whereIn(head($keys), array_map('head', $keyList), $boolean, $not);
+        }
+
+        $keys = Arr::isAssoc($keys) ? $keys : array_combine($keys, $keys);
 
         //makes a where statement that looks like:
-        //( (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) or (id1 = ? and id2? = ? ...) ... )
-        $makeWhere = function ($query) use ($fields, $idList, $not) {
+        //if $not == false: ( (id1 = ? and id2 = ? ...) or (id1 = ? and id2 = ? ...) or (id1 = ? and id2 = ? ...) ... )
+        //if $not == true:  ( (id1 != ? and id2 != ? ...) and (id1 != ? and id2 != ? ...) and (id1 != ? and id2 != ? ...) ... )
+        $makeWhere = function ($query) use ($keys, $keyList, $not) {
+
             /**
              * @var  Builder $query
              */
-
-            foreach ($idList as $values) {
+            foreach ($keyList as $values) {
 
                 $fn = function ($query) use ($fields, $values, $not) {
                     /**
@@ -1038,36 +1045,64 @@ class Builder
                      */
                     foreach ($fields as $key => $field) {
 
-                        if(is_numeric($key)){
+                        if (is_numeric($key)) {
                             $key = $field;
                         }
 
                         if (!isset($values[ $key ])) {
-                            throw new \RuntimeException('key field mismatch');
+                            throw new RuntimeException('whereList: key field mismatch');
                         }
 
-                        $query = $query->where($field, $not ? '!=' : '=', $values[ $key ], $not ? 'or' : 'and');
+                        $query->where($field, $not ? '!=' : '=', $values[ $key ]);
                     }
                 };
-                $query->orWhere($fn);
+
+                $query->where($fn, null, null, $not ? 'or' : 'and');
             }
         };
 
-        return $this->where($makeWhere);
+        return $this->where($makeWhere, null, null, $boolean);
     }
 
     /**
      * Add a basic where clause built from key pairs not in $idList to the query.
      *
-     * @param array   $fields
-     * @param array[] $idList
+     * @param array              $keys
+     * @param array[]|Collection $keyList
      *
      * @return Builder
      */
-    public function whereNotList($fields, $idList)
+    public function orWhereList($keys, $keyList)
+    {
+        return $this->whereList($keys, $keyList, 'or');
+    }
+
+    /**
+     * Add a basic where clause built from key pairs not in $idList to the query.
+     *
+     * @param array              $keys
+     * @param array[]|Collection $keyList
+     * @param string             $boolean
+     *
+     * @return Builder
+     */
+    public function whereNotList($keys, $keyList, $boolean = 'and')
+    {
+        return $this->whereList($keys, $keyList, $boolean, true);
+    }
+
+    /**
+     * Add a basic where clause built from key pairs not in $idList to the query.
+     *
+     * @param array              $keys
+     * @param array[]|Collection $keyList
+     *
+     * @return Builder
+     */
+    public function orWhereNotList($keys, $keyList)
     {
 
-        return $this->whereList($fields, $idList, true);
+        return $this->whereNotList($keys, $keyList, 'or');
     }
 
     /**
