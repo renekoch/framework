@@ -17,11 +17,12 @@ class ViewBladeCompilerTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($compiler->isExpired('foo'));
     }
 
-    public function testIsExpiredReturnsTrueIfCachePathIsNull()
+    /**
+     * @expectedException \InvalidArgumentException
+     */
+    public function testCannotConstructWithBadCachePath()
     {
-        $compiler = new BladeCompiler($files = $this->getFiles(), null);
-        $files->shouldReceive('exists')->never();
-        $this->assertTrue($compiler->isExpired('foo'));
+        new BladeCompiler($this->getFiles(), null);
     }
 
     public function testIsExpiredReturnsTrueWhenModificationTimesWarrant()
@@ -73,14 +74,6 @@ class ViewBladeCompilerTest extends PHPUnit_Framework_TestCase
         // trigger compilation with null $path
         $compiler->compile();
         $this->assertEquals('foo', $compiler->getPath());
-    }
-
-    public function testCompileDoesntStoreFilesWhenCachePathIsNull()
-    {
-        $compiler = new BladeCompiler($files = $this->getFiles(), null);
-        $files->shouldReceive('get')->never();
-        $files->shouldReceive('put')->never();
-        $compiler->compile('foo');
     }
 
     public function testEchosAreCompiled()
@@ -704,7 +697,7 @@ empty
         $compiler = new BladeCompiler($this->getFiles(), __DIR__);
         $this->assertCount(0, $compiler->getCustomDirectives());
         $compiler->directive('customControl', function ($expression) {
-            return "<?php echo custom_control{$expression}; ?>";
+            return "<?php echo custom_control({$expression}); ?>";
         });
         $this->assertCount(1, $compiler->getCustomDirectives());
 

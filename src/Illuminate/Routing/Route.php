@@ -289,7 +289,7 @@ class Route
         }
 
         if (is_string($middleware)) {
-            $middleware = [$middleware];
+            $middleware = func_get_args();
         }
 
         $this->action['middleware'] = array_merge(
@@ -424,9 +424,7 @@ class Route
     public function parameters()
     {
         if (isset($this->parameters)) {
-            return array_map(function ($value) {
-                return is_string($value) ? rawurldecode($value) : $value;
-            }, $this->parameters);
+            return $this->parameters;
         }
 
         throw new LogicException('Route is not bound.');
