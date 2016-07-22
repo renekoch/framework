@@ -9,40 +9,51 @@ use Illuminate\Support\Collection as BaseCollection;
 
 class Collection extends BaseCollection implements QueueableCollection
 {
+
     /**
      * Find a model in the collection by key.
      *
-     * @param  mixed  $key
-     * @param  mixed  $default
+     * @param  mixed|string[]|Model $keyset
+     * @param  mixed                $default
+     *
      * @return \Illuminate\Database\Eloquent\Model
      */
-    public function find($key, $default = null)
+    public function find($keyset, $default = null)
     {
-        if ($key instanceof Model) {
-            $key = $key->getKey();
+        if ($keyset instanceof Model) {
+            $keyset = $keyset->getKey();
         }
 
-        return Arr::first($this->items, function ($itemKey, $model) use ($key) {
-            /**
-             * @var Model $model
-             */
+        if (empty($keyset)) {
+            return null;
+        }
 
-            $keys = $model->getKey();
+        return Arr::first(
+          $this->items,
+          function ($itemKey, $model) use ($keyset) {
 
-            if (is_array($key)){
+              /**
+               * @var Model $model
+               */
+              $keys = $model->getKey();
 
-                if (!count($key)) return false;
+              if (is_array($keys)) {
+                  foreach($keyset as $key => $value){
+                      if (!isset($keys[ $key ])) {
+                          return false;
+                      }
+                      if ($keys[ $key ] != $value) {
+                          return false;
+                      }
+                  }
 
-                foreach ($key as $singleKey => $val){
-                    if(!isset($keys[$singleKey]))return false;
-                    if ($keys[$singleKey] != $val) return false;
-                }
+                  return true;
+              }
 
-                return true;
-            }
-
-            return reset($keys) == $key;
-        }, $default);
+              return $keys == head((array) $keyset);
+          },
+          $default
+        );
     }
 
     /**
@@ -99,6 +110,9 @@ class Collection extends BaseCollection implements QueueableCollection
         $key = $key instanceof Model ? $key->getKey() : $key;
 
         return parent::contains(function ($k, $m) use ($key) {
+            /**
+             * @var Model $m
+             */
             return $m->getKey() == $key;
         });
     }

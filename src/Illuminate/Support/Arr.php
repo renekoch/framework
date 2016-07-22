@@ -539,38 +539,33 @@ class Arr
      */
     public static function buildHash($attributes, $keys, $noNullValues = false)
     {
-        $keys = (array)$keys;
         $hash = '';
         $data = [];
 
         if ($attributes instanceof Model) {
             $attributes = $attributes->getAttributes();
-        }
-        elseif ($attributes instanceof Collection) {
+        } elseif ($attributes instanceof Collection) {
             $attributes = $attributes->all();
-        }
-        else {
+        } else {
             $attributes = (array)$attributes;
         }
         $keys = $keys instanceof Collection ? $keys->all() : (array)$keys;
 
+        //simplify hash if only 1 key
         if (count($keys) == 1) {
-
-            $keyname = reset($keys);
-            $key     = isset($attributes[ $keyname ]) ? $attributes[ $keyname ] : null;
-
-            unset($attributes[ $keyname ]);
-
-            return ($noNullValues && is_null($key)) ? [$key, $attributes] : null;
+            $keyname = head($keys);
+            $hash    = isset($attributes[ $keyname ]) ? $attributes[ $keyname ] : '';
+            $data    = [$keyname => $hash];
         }
-
-        foreach ($keys as $keyid => $keyname) {
-            $val = $data[ $keyname ] = self::get($attributes, $keyname);
-            if ($noNullValues && is_null($val)) {
-                return null;
+        else {
+            foreach ($keys as $keyid => $keyname) {
+                $val = $data[ $keyname ] = self::get($attributes, $keyname);
+                if ($noNullValues && is_null($val)) {
+                    return null;
+                }
+                $key = is_numeric($keyid) ? $keyname : $keyid;
+                $hash .= $key.(string)$val;
             }
-            $key = is_numeric($keyid) ? $keyname : $keyid;
-            $hash .= $key.(string)$val;
         }
 
         return ($noNullValues && $hash == '') ? null : [$hash, $data];
@@ -607,6 +602,41 @@ class Arr
         }
 
         return $result;
+    }
+
+    /**
+     * Reverse a hash into a keyarray, returns null if hash do not match keynames
+     *
+     * @param string                     $hash
+     * @param string[]|Collection|string $keys
+     *
+     * @return array|null
+     */
+    public static function buildFromHash($hash, $keys)
+    {
+        $keys = $keys instanceof Collection ? $keys->all() : (array)$keys;
+
+        if (!count($keys)) {
+            return null;
+        }
+        if (count($keys) == 1) {
+            return $hash;
+        }
+
+        //build regexp for get keys
+        $search = '/^';
+        foreach ($keys as $keyid => $keyname) {
+            $key = is_numeric($keyid) ? $keyname : $keyid;
+            $search .= $key.'(?<'.$keyname.'>.*?)';
+        }
+        $search .= '$/';
+
+        $matches = [];
+        if (!preg_match($search, $hash, $matches)) {
+            return null;
+        }
+
+        return self::only($matches, $keys);
     }
 
 }

@@ -682,7 +682,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
             $with = func_get_args();
         }
         $query = static::with($with);
-        foreach ($this->getKey() as $key => $value) {
+        foreach ($this->getKey(true) as $key => $value) {
             $query->where($key, $value);
         }
 
@@ -1047,11 +1047,12 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // get the table and create the relationship instances for the developers.
         list($type, $ids) = $this->getMorphs($name, $type, $ids);
 
+        $keys = [];
         foreach ($ids as $localKey => $key) {
-            $ids[ $table.$localKey ] = $key;
+            $keys[ $table.$localKey ] = $key;
         }
 
-        return new MorphMany($instance->newQuery(), $this, $table.$type, $ids);
+        return new MorphMany($instance->newQuery(), $this, $table.$type, $keys);
     }
 
     /**
@@ -1542,7 +1543,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         }
 
         $this->incrementOrDecrementAttributeValue($column, $amount, $method);
-        foreach($this->getKey() as $key => $val){
+        foreach($this->getKey(true) as $key => $val){
             $query->where($key, $val);
         }
 
@@ -2100,18 +2101,35 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     }
 
     /**
-     * Get the value of the model's primary key.
+     * Get the value of the model's primary key(s).
+     *
+     * @return mixed|array
+     */
+    public function getKey($forceArray = false)
+    {
+        $keys = $this->getKeyName($forceArray);
+        if (is_array($keys)){
+            $list = [];
+            foreach($keys as $keyname){
+                $list[$keyname] = $this->getAttribute($keyname);
+            }
+
+            return $list;
+        }
+        else{
+            return $this->getAttribute(head($keys));
+        }
+    }
+
+
+    /**
+     * Get an array of the model's primary keys value.
      *
      * @return array
      */
-    public function getKey()
+    public function getKeys()
     {
-        $list = [];
-        foreach($this->getKeyName() as $keyname){
-            $list[$keyname] = $this->getAttribute($keyname);
-        }
-
-        return $list;
+        return $this->getKey(true);
     }
 
     /**
@@ -2121,8 +2139,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getQueueableId()
     {
-        $keys = $this->getKey();
-        return $keys;
+        return $this->getUniqueId();
     }
 
     /**
@@ -2130,9 +2147,19 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      *
      * @return string[]
      */
-    public function getKeyName()
+    public function getKeyName($forceArray = false)
     {
-        return (array)$this->primaryKey;
+        return $forceArray ? (array)$this->primaryKey : $this->primaryKey;
+    }
+
+    /**
+     * Get an array of the primary keys for the model.
+     *
+     * @return string[]
+     */
+    public function getKeyNames()
+    {
+        return $this->getKeyName(true);
     }
 
     /**
@@ -2153,15 +2180,22 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      *
      * @return string[]
      */
-    public function getQualifiedKeyName()
+    public function getQualifiedKeyName($forceArray = false)
     {
+        $keynames = $this->getKeyName($forceArray);
         $table = $this->getTable() . '.';
-        $list = [];
-        foreach($this->getKeyName() as $keyname){
-            $list[$keyname] = $table . $keyname;
-        }
 
-        return $list;
+        if (is_array($keynames)){
+            $list = [];
+            foreach($this->getKeyName() as $keyname){
+                $list[$keyname] = $table . $keyname;
+            }
+
+            return $list;
+        }
+        else{
+            return $keynames;
+        }
     }
 
     /**
@@ -2171,7 +2205,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getRouteKey()
     {
-        return $this->getAttribute($this->getRouteKeyName());
+        return $this->getUniqueId();
     }
 
     /**
@@ -2181,7 +2215,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getRouteKeyName()
     {
-        return $this->getKeyName();
+        return implode('',$this->getKeyNames());
     }
 
 
@@ -2197,6 +2231,31 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         $keys = (array)($keys ?: $this->getKeyName());
         return Arr::buildHash($this->getAttributes(), $keys, $noNullValues);
+    }
+
+    /**
+     * Make a hash key out of a list of $attributes or primary keys
+     *
+     * @param string[]|null $keys
+     *
+     * @return mixed
+     */
+    public function getUniqueId($keys = null)
+    {
+        return $this->getHashKey($keys)[0];
+    }
+
+    /**
+     * @param  string       $hash
+     * @param string[]|null $keys
+     *
+     * @return array|null
+     */
+    public function fromHash($hash, $keys = null)
+    {
+        $keys = (array)($keys ?: $this->getKeyName());
+
+        return Arr::buildFromHash($hash, $keys);
     }
 
     /**

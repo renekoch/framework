@@ -639,7 +639,7 @@ class BelongsToMany extends Relation
      */
     public function getRelatedIds()
     {
-        $keys = $this->getRelated()->getQualifiedKeyName();
+        $keys = $this->getRelated()->getQualifiedKeyName(true);
         $list = $this->getQuery()->getQuery()->select($keys)->get();
 
         return new BaseCollection($list);
@@ -726,7 +726,7 @@ class BelongsToMany extends Relation
      */
     protected function findQuery($ids)
     {
-        $keys  = $this->getRelated()->getQualifiedKeyName();
+        $keys  = $this->getRelated()->getQualifiedKeyName(true);
         $first = reset($ids);
         if (count($keys) == 1 && !is_array($first)) {
             $this->query->getQuery()->whereIn(reset($keys), $ids);
@@ -1071,7 +1071,7 @@ class BelongsToMany extends Relation
     {
 
         if ($keys instanceof Model) {
-            $keys = [$keys->getKey()];
+            $keys = [$keys->getKey(true)];
         }
         elseif ($keys instanceof Collection) {
             $keys = $keys->modelKeys();
@@ -1241,7 +1241,7 @@ class BelongsToMany extends Relation
     public function detach($ids = [], $touch = true)
     {
         if ($ids instanceof Model) {
-            $ids = [$ids->getKey()];
+            $ids = [$ids->getKey(true)];
         }
         elseif (is_array($ids)) {
             $lookupKeys = array_keys($this->otherKey);

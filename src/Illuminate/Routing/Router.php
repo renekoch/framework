@@ -855,19 +855,24 @@ class Router implements RegistrarContract
         $parameters = $route->parameters();
 
         foreach ($route->signatureParameters(Model::class) as $parameter) {
-            $class = $parameter->getClass();
 
+            /**
+             * @var \ReflectionParameter $parameter
+             */
             if (array_key_exists($parameter->name, $parameters) &&
                 ! $route->getParameter($parameter->name) instanceof Model) {
-                $method = $parameter->isDefaultValueAvailable() ? 'first' : 'firstOrFail';
-
+                /**
+                 * @var Model $class
+                 * @var Model $model
+                 */
+                $class = $parameter->getClass();
                 $model = $class->newInstance();
 
-                $route->setParameter(
-                    $parameter->name, $model->where(
-                        $model->getRouteKeyName(), $parameters[$parameter->name]
-                    )->{$method}()
-                );
+                $method = $parameter->isDefaultValueAvailable() ? 'first' : 'firstOrFail';
+
+                $param = $model->newQuery()->where($model->getRouteKeyName(), $parameters[$parameter->name])->{$method}();
+
+                $route->setParameter($parameter->name,  $param);
             }
         }
     }

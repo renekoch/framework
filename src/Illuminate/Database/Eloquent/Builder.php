@@ -152,33 +152,35 @@ class Builder
     /**
      * Find a model by its primary key.
      *
-     * @param  mixed  $id
-     * @param  array  $columns
-     * @return \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\Collection|static[]|static|null
+     * @param  mixed $id
+     * @param  array $columns
+     *
+     * @return \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\Collection|Model[]|Model|null
      */
     public function find($id, $columns = ['*'])
     {
         // Check for composite keys
-        $keys = (array) $this->model->getQualifiedKeyName();
+        $keys = $this->model->getQualifiedKeyName();
 
-        if (count($keys) > 1){
-
-            if(is_array(reset($id))) {
-                $this->query->whereList($keys, $id);
-
-                return $this->get($columns);
+        if (is_array($keys)) {
+            //convert string to keyset
+            if (is_string($id)) {
+                $id = $this->model->fromHash($id);
+            }
+            //its a multiple dimentional array so findMany
+            elseif (is_array(head($id))) {
+                return $this->findMany($id, $columns);
             }
 
             $this->query->whereList($keys, [$id]);
-
-            return $this->first();
         }
+        else {
+            if (is_array($id)) {
+                return $this->findMany($id, $columns);
+            }
 
-        if (is_array($id)) {
-            return $this->findMany($id, $columns);
+            $this->query->where($keys, $id);
         }
-
-        $this->query->where($this->model->getQualifiedKeyName(), '=', $id);
 
         return $this->first($columns);
     }
@@ -188,7 +190,7 @@ class Builder
      *
      * @param  array  $ids
      * @param  array  $columns
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Database\Eloquent\Collection|Model[]
      */
     public function findMany($ids, $columns = ['*'])
     {
@@ -197,12 +199,16 @@ class Builder
         }
 
         // Check for composite keys
-        $keys = (array) $this->model->getQualifiedKeyName();
+        $keys = $this->model->getQualifiedKeyName(true);
         if (count($keys) > 1){
-            $this->query->whereList($keys, $ids)->get($columns);
+            //convert string to keyset
+            $fn = function($id){
+                return is_string($id) ? $this->model->fromHash($id) : $id;
+            };
+            $this->query->whereList($keys, array_map($fn, $ids));
         }
         else{
-            $this->query->whereIn(reset($keys), $ids);
+            $this->query->whereIn(head($keys), $ids);
         }
 
         return $this->get($columns);
@@ -221,11 +227,12 @@ class Builder
     {
         $result = $this->find($id, $columns);
 
-        if (is_array($id)) {
-            if (count($result) == count(array_unique($id))) {
+        if ($result instanceof Collection) {
+            if (count($result) == count($id)) {
                 return $result;
             }
-        } elseif (! is_null($result)) {
+        }
+        elseif (! is_null($result)) {
             return $result;
         }
 
@@ -441,7 +448,9 @@ class Builder
     public function each(callable $callback, $count = 1000)
     {
         if (is_null($this->query->orders) && is_null($this->query->unionOrders)) {
-            $this->orderBy($this->model->getQualifiedKeyName(), 'asc');
+            foreach($this->model->getQualifiedKeyName(true) as $field) {
+                $this->query->orderBy($field, 'asc');
+            }
         }
 
         return $this->chunk($count, function ($results) use ($callback) {

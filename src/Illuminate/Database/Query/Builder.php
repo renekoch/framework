@@ -921,9 +921,18 @@ class Builder
             $values = $values->toArray();
         }
 
-        $this->wheres[] = compact('type', 'column', 'values', 'boolean');
+        //no values should find no rows
+        if (!count($values)){
+            return $this->whereRaw('?', [$not ? 0 : 1], $boolean);
+        }
+        elseif(count($values) == 1){
+            $this->where($column, $not ? '=': '!=', head($values), $boolean);
+        }
+        else{
+            $this->wheres[] = compact('type', 'column', 'values', 'boolean');
 
-        $this->addBinding($values, 'where');
+            $this->addBinding($values, 'where');
+        }
 
         return $this;
     }
@@ -1022,6 +1031,10 @@ class Builder
      */
     public function whereList($keys, $keyList, $boolean = 'and', $not = false)
     {
+        //no $keyList should find no rows
+        if (!count($keyList)){
+            return $this->whereRaw('?', [$not ? 1 : 0], $boolean);
+        }
         //optimize: Use whereIn when only one key
         if (count($keys) === 1) {
             return $this->whereIn(head($keys), array_map('head', $keyList), $boolean, $not);

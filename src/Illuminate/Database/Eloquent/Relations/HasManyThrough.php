@@ -259,17 +259,36 @@ class HasManyThrough extends Relation
     /**
      * Find a related model by its primary key.
      *
-     * @param  mixed  $id
-     * @param  array  $columns
+     * @param  mixed|array $id
+     * @param  array       $columns
+     *
      * @return \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\Collection|null
      */
     public function find($id, $columns = ['*'])
     {
-        if (is_array($id)) {
-            return $this->findMany($id, $columns);
-        }
+        // Check for composite keys
+        $keys = $this->getRelated()->getQualifiedKeyName(true);
 
-        $this->query->where($this->getRelated()->getQualifiedKeyName(), '=', $id);
+        if (count($keys) > 1) {
+
+            if (is_string($id)) {
+                $id = $this->getRelated()->fromHash($id);
+            }
+
+            //its a multiple dimentional array so most likely findMany
+            if (is_array(head($id))) {
+                return $this->findMany($id, $columns);
+            }
+
+            $this->query->getQuery()->whereList($keys, [$id]);
+        }
+        else {
+            if (is_array($id)) {
+                return $this->findMany($id, $columns);
+            }
+
+            $this->query->where(head($keys), head((array)$id));
+        }
 
         return $this->first($columns);
     }
@@ -283,11 +302,24 @@ class HasManyThrough extends Relation
      */
     public function findMany($ids, $columns = ['*'])
     {
+
         if (empty($ids)) {
             return $this->getRelated()->newCollection();
         }
 
-        $this->query->getQuery()->whereIn($this->getRelated()->getQualifiedKeyName(), $ids);
+        $keys = $this->getRelated()->getQualifiedKeyName(true);
+
+        $fn = function($id){
+            //convert string to keyset
+            return is_string($id) ? $this->getRelated()->fromHash($id) : $id;
+        };
+
+        //cleanup keys
+        $ids = (array) $ids;
+        $ids = array_keys($keys) == array_keys($ids) ? [$ids] : $ids;
+        $ids = array_map($fn, $ids);
+
+        $this->getQuery()->getQuery()->whereList($keys, $ids);
 
         return $this->get($columns);
     }
@@ -305,11 +337,12 @@ class HasManyThrough extends Relation
     {
         $result = $this->find($id, $columns);
 
-        if (is_array($id)) {
-            if (count($result) == count(array_unique($id))) {
+        if ($result instanceof Collection) {
+            if (count($result) == count($id)) {
                 return $result;
             }
-        } elseif (! is_null($result)) {
+        }
+        elseif (! is_null($result)) {
             return $result;
         }
 
