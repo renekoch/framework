@@ -49,11 +49,18 @@ class BelongsToMany extends Relation
     protected $pivotColumns = [];
 
     /**
-     * Any pivot table restrictions.
+     * Any pivot table restrictions for where clauses.
      *
      * @var array
      */
     protected $pivotWheres = [];
+
+    /**
+     * Any pivot table restrictions for whereIn clauses.
+     *
+     * @var array
+     */
+    protected $pivotWhereIns = [];
 
     /**
      * The custom pivot table column for the created_at timestamp.
@@ -147,7 +154,7 @@ class BelongsToMany extends Relation
      */
     public function wherePivotIn($column, $values, $boolean = 'and', $not = false)
     {
-        $this->pivotWheres[] = func_get_args();
+        $this->pivotWhereIns[] = func_get_args();
 
         $this->getQuery()->getQuery()->whereIn($this->table.'.'.$column, $values, $boolean, $not);
 
@@ -1233,13 +1240,17 @@ class BelongsToMany extends Relation
     /**
      * Detach models from the relationship.
      *
-     * @param  int|array $ids
+     * @param  mixed|array $ids
      * @param  bool      $touch
      *
      * @return int
      */
     public function detach($ids = [], $touch = true)
     {
+        if ($ids instanceof Collection) {
+            $ids = $ids->all();
+        }
+
         if ($ids instanceof Model) {
             $ids = [$ids->getKey(true)];
         }
@@ -1342,6 +1353,10 @@ class BelongsToMany extends Relation
         }
         foreach ($this->foreignKey as $key => $value) {
             $query->where($value,  $this->parent->getAttribute($key));
+        }
+
+        foreach ($this->pivotWhereIns as $whereArgs) {
+            call_user_func_array([$query, 'whereIn'], $whereArgs);
         }
 
         return $query;
