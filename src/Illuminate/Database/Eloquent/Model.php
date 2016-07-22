@@ -281,7 +281,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function __construct(array $attributes = [])
     {
         //composite keys cant be incrementing
-        if ($this->incrementing && count($this->getKeyName()) > 1) {
+        if ($this->incrementing && count($this->getKeyName(true)) > 1) {
             $this->incrementing = false;
         }
 
@@ -806,7 +806,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         //backwards compability for pre composite keys
         if(is_string($ids)){
-            $primaryKey = head($this->getKeyName());
+            $primaryKey = head($this->getKeyName(true));
             $ids = [$ids => $localKeys?:$name .'_'.$primaryKey];
         }
 
@@ -853,7 +853,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)){
             //if no $otherKey try to guess the most likely key
             if (!$otherKey){
-                $otherKey = head($instance->getKeyName());
+                $otherKey = head($instance->getKeyName(true));
             }
 
             $keys = [$foreignKey => $otherKey];
@@ -864,7 +864,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // when combined with $otherKey should conventionally match the columns.
         elseif (is_null($foreignKey)) {
             $keys = [];
-            $otherKey = (array)($otherKey ? : $instance->getKeyName());
+            $otherKey = (array)($otherKey ? : $instance->getKeyName(true));
             foreach($otherKey as $keyname){
                 $keys[$base . $keyname] = $keyname;
             }
@@ -962,7 +962,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
             //if no $localKey try to guess the most likely key
             if (!$localKey) {
-                $localKey = head($this->getKeyName());
+                $localKey = head($this->getKeyName(true));
             }
 
             $foreignKey = [$foreignKey => $localKey];
@@ -971,7 +971,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         //if non keys provided use primary keys
         elseif (is_null($foreignKey)) {
             $foreignKey = [];
-            foreach ($this->getKeyName() as $keyname) {
+            foreach ($this->getKeyName(true) as $keyname) {
                 $foreignKey[ $base.$keyname ] = $keyname;
             }
         }
@@ -1006,7 +1006,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         $secondKey = $secondKey ?: $through->getForeignKeys();
 
-        $localKey = $localKey ?: $this->getKeyName();
+        $localKey = $localKey ?: $this->getKeyName(true);
 
         /**
          * @var Model $instance
@@ -1038,7 +1038,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         //backwards compability for pre composite keys
         if (is_string($ids)) {
-            $key = head($this->getKeyName());
+            $key = head($this->getKeyName(true));
             $ids = [$ids => $localKeys ?: $name.'_'.$key];
         }
 
@@ -1078,7 +1078,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // relationship. Once we have determined the keys we'll make the query
         // instances as well as the relationship instances we need for this.
         if(is_string($foreignKey)){
-            $foreignKey = [head($this->getKeyName()) => $foreignKey];
+            $foreignKey = [head($this->getKeyName(true)) => $foreignKey];
         }
         $foreignKey = $foreignKey?:$this->getForeignKeys();
 
@@ -1088,7 +1088,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         $instance = new $related;
 
         if(is_string($otherKey)){
-            $otherKey = [head($instance->getKeyName()) => $otherKey];
+            $otherKey = [head($instance->getKeyName(true)) => $otherKey];
         }
         $otherKey = $otherKey ?: $instance->getForeignKeys();
 
@@ -1227,20 +1227,24 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // for the operation. The developers can then check this number as a boolean
         // type value or get this total count of records deleted for logging, etc.
         $count = 0;
+        $instance = new static;
 
-        $ids = is_array($ids) ? $ids : func_get_args();
+        $keys = $instance->getKeyName(true);
+
+        $ids = is_array($ids) && $keys != array_keys($ids) ? $ids : func_get_args();
+        $fn = function($id) use ($instance){
+            return is_string($id) ? $instance->fromHash($id) : $id;
+        };
+        $ids = array_map($fn, $ids);
 
         /**
          * @var Model|QueryBuilder|Builder $instance
          */
-        $instance = new static;
 
         // We will actually pull the models from the database table and call delete on
         // each of them individually so that their events get fired properly with a
         // correct set of attributes in case the developers wants to check these.
-        $key = $instance->getKeyName();
-
-        foreach ($instance->newQuery()->whereList($key, $ids)->get() as $model) {
+        foreach ($instance->newQuery()->whereList($keys, $ids)->get() as $model) {
             /**
              * @var Model $model
              */
@@ -1261,7 +1265,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function delete()
     {
-        if (is_null($this->getKeyName())) {
+        if (empty($this->getKeyName())) {
             throw new Exception('No primary key defined on model.');
         }
 
@@ -1783,7 +1787,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function insertAndSetId(Builder $query, $attributes)
     {
-        $keyName = head($this->getKeyName());
+        $keyName = head($this->getKeyName(true));
         $id = $query->insertGetId($attributes, $keyName);
 
         $this->setAttribute($keyName, $id);
@@ -1867,7 +1871,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function getKeyForSaveQuery()
     {
-        $keys   = (array)$this->getKeyName();
+        $keys   = $this->getKeyName(true);
         $result = [];
 
         foreach ($keys as $keyname) {
@@ -2187,7 +2191,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         if (is_array($keynames)){
             $list = [];
-            foreach($this->getKeyName() as $keyname){
+            foreach($this->getKeyName(true) as $keyname){
                 $list[$keyname] = $table . $keyname;
             }
 
@@ -2229,7 +2233,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getHashKey($keys = null, $noNullValues = false)
     {
-        $keys = (array)($keys ?: $this->getKeyName());
+        $keys = (array)($keys ?: $this->getKeyName(true));
         return Arr::buildHash($this->getAttributes(), $keys, $noNullValues);
     }
 
@@ -2253,7 +2257,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function fromHash($hash, $keys = null)
     {
-        $keys = (array)($keys ?: $this->getKeyName());
+        $keys = (array)($keys ?: $this->getKeyName(true));
 
         return Arr::buildFromHash($hash, $keys);
     }
@@ -2342,14 +2346,12 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      *
      * @return string[]
      */
-    public function getForeignKeys($attributes = null)
+    public function getForeignKeys()
     {
-
-        $attributes = $attributes ?:$this->getKeyName();
         $basename = Str::snake(class_basename($this)) . '_';
 
         $keys = [];
-        foreach($attributes as $keyname){
+        foreach($this->getKeyName(true) as $keyname){
             $keys[$keyname] = $basename . $keyname;
         }
 
@@ -3044,7 +3046,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         if ($this->getIncrementing()) {
 
-            $keyname = head($this->getKeyName());
+            $keyname = head($this->getKeyName(true));
 
             if (!isset($this->casts[$keyname])){
                 $this->casts[$keyname] = $this->keyType;
@@ -3323,12 +3325,11 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function replicate(array $except = null)
     {
         $defaults = [
-            $this->getKeyName(),
             $this->getCreatedAtColumn(),
             $this->getUpdatedAtColumn(),
         ];
 
-        $except = $except ? array_unique(array_merge($except, $defaults)) : $defaults;
+        $except = $except ? array_unique(array_merge($except, $this->getKeyName(true), $defaults)) : $defaults;
 
         $attributes = Arr::except($this->attributes, $except);
 

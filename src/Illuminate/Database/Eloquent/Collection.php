@@ -109,12 +109,18 @@ class Collection extends BaseCollection implements QueueableCollection
 
         $key = $key instanceof Model ? $key->getKey() : $key;
 
-        return parent::contains(function ($k, $m) use ($key) {
+        $fn = function ($k, $model) use ($key) {
             /**
-             * @var Model $m
+             * @var Model $model
              */
-            return $m->getKey() == $key;
-        });
+            if (is_string($key)) {
+                $key = $model->fromHash($key);
+            }
+
+            return $model->getKey() == $key;
+        };
+
+        return parent::contains($fn);
     }
 
     /**
@@ -122,13 +128,13 @@ class Collection extends BaseCollection implements QueueableCollection
      *
      * @return array
      */
-    public function modelKeys()
+    public function modelKeys($forceArray = false)
     {
-        return array_map(function ($model) {
+        return array_map(function ($model) use ($forceArray){
             /**
              * @var Model $model
              */
-            return $model->getKey();
+            return $model->getKey($forceArray);
         }, $this->items);
     }
 
