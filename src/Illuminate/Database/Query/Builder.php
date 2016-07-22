@@ -1031,6 +1031,10 @@ class Builder
      */
     public function whereList($keys, $keyList, $boolean = 'and', $not = false)
     {
+        if ($keyList instanceof Collection){
+            $keyList = $keyList->all();
+        }
+
         //no $keyList should find no rows
         if (!count($keyList)){
             return $this->whereRaw('?', [$not ? 1 : 0], $boolean);
