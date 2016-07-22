@@ -2281,11 +2281,11 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         $type = $type ?: $name.'_type';
         if (is_string($ids)) {
-            $ids = [head($this->getKeyName()) => $ids];
+            $ids = [head($this->getKeyName(true)) => $ids];
         }
         elseif (!is_array($ids)) {
             $ids = [];
-            foreach ($this->getKeyName() as $key) {
+            foreach ($this->getKeyName(true) as $key) {
                 $ids[ $name.'_'.$key ] = $key;
             }
         }
