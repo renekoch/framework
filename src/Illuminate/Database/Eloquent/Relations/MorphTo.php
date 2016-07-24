@@ -169,10 +169,10 @@ class MorphTo extends BelongsTo
      */
     protected function matchToMorphParents($type, Collection $results)
     {
-        $foreignKeys = array_keys($this->constraintKeys);
+        $foreignKeys = array_values($this->constraintKeys);
         foreach ($results as $result) {
 
-            $hash = Arr::buildHash($result, $foreignKeys)[0];
+            $hash = $result->getHashKey($foreignKeys)[0];
             if (isset($this->dictionary[$type][$hash])) {
                 foreach ($this->dictionary[$type][$hash] as $model) {
                     /**
