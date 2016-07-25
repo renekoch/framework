@@ -57,9 +57,10 @@ interface Job
     /**
      * Call the failed method on the job instance.
      *
+     * @param  \Throwable  $e
      * @return void
      */
-    public function failed();
+    public function failed($e);
 
     /**
      * Get the name of the queue the job belongs to.
