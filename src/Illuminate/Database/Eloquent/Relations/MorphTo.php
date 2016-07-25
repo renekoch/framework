@@ -164,14 +164,13 @@ class MorphTo extends BelongsTo
      * Match the results for a given type to their parents.
      *
      * @param  string  $type
-     * @param  \Illuminate\Database\Eloquent\Collection  $results
+     * @param  \Illuminate\Database\Eloquent\Collection|Model[]  $results
      * @return void
      */
     protected function matchToMorphParents($type, Collection $results)
     {
         $foreignKeys = array_values($this->constraintKeys);
         foreach ($results as $result) {
-
             $hash = $result->getHashKey($foreignKeys)[0];
             if (isset($this->dictionary[$type][$hash])) {
                 foreach ($this->dictionary[$type][$hash] as $model) {
