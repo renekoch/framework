@@ -432,6 +432,18 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('all must be required!', $v->messages()->first('name.1'));
     }
 
+    public function testIfRulesAreSuccessfullyAdded()
+    {
+        $trans = $this->getRealTranslator();
+        $v = new Validator($trans, [], ['foo' => 'Required']);
+        // foo has required rule
+        $this->assertTrue($v->hasRule('foo', 'Required'));
+        // foo doesn't have array rule
+        $this->assertFalse($v->hasRule('foo', 'Array'));
+        // bar doesn't exists
+        $this->assertFalse($v->hasRule('bar', 'Required'));
+    }
+
     public function testValidateArray()
     {
         $trans = $this->getRealTranslator();
@@ -1789,7 +1801,15 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $v->setFiles(['x' => $uploadedFile]);
         $this->assertTrue($v->passes());
 
+        $v = new Validator($trans, [], ['x' => 'dimensions:ratio=1.5']);
+        $v->setFiles(['x' => $uploadedFile]);
+        $this->assertTrue($v->passes());
+
         $v = new Validator($trans, [], ['x' => 'dimensions:ratio=1/1']);
+        $v->setFiles(['x' => $uploadedFile]);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, [], ['x' => 'dimensions:ratio=1']);
         $v->setFiles(['x' => $uploadedFile]);
         $this->assertTrue($v->fails());
     }
@@ -2411,6 +2431,23 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         ];
         $v = new Validator($trans, $data, ['people.*.cars.*.model' => 'required']);
         $this->assertFalse($v->passes());
+    }
+
+    public function testParsingArrayKeysWithDot()
+    {
+        $trans = $this->getRealTranslator();
+
+        $v = new Validator($trans, ['foo' => ['bar' => ''], 'foo.bar' => 'valid'], ['foo.bar' => 'required']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['foo' => ['bar' => 'valid'], 'foo.bar' => ''], ['foo\.bar' => 'required']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['foo' => ['bar.baz' => '']], ['foo.bar\.baz' => 'required']);
+        $this->assertTrue($v->fails());
+
+        $v = new Validator($trans, ['foo' => [['bar.baz' => ''], ['bar.baz' => '']]], ['foo.*.bar\.baz' => 'required']);
+        $this->assertTrue($v->fails());
     }
 
     public function testImplicitEachWithAsterisksWithArrayValues()

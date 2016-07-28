@@ -7,25 +7,30 @@ class NotificationNotificationTest extends PHPUnit_Framework_TestCase
     public function testLevelCanBeRetrieved()
     {
         $notification = new Notification;
-        $this->assertEquals('info', $notification->level());
+        $this->assertEquals('info', $notification->level);
 
         $notification = new NotificationTestNotification;
-        $this->assertEquals('error', $notification->level());
+        $notification->level('error');
+        $this->assertEquals('error', $notification->level);
     }
 
-    public function testSubjectCanBeRetrieved()
+    public function testChannelNotificationFormatsMultiLineText()
     {
-        $notification = new NotificationTestNotification;
-        $this->assertEquals('Notification Test Notification', $notification->subject());
+        $notification = new Notification([]);
+        $notification->with('
+            This is a
+            single line of text.
+        ');
 
-        $notification = new NotificationTestNotificationWithSubject;
-        $this->assertEquals('Zonda', $notification->subject());
-    }
+        $this->assertEquals('This is a single line of text.', $notification->introLines[0]);
 
-    public function testMessageBuilderCanBeRetrieved()
-    {
-        $notification = new Notification;
-        $this->assertInstanceOf('Illuminate\Notifications\MessageBuilder', $notification->line('Something'));
+        $notification = new Notification([]);
+        $notification->with([
+            'This is a',
+            'single line of text.',
+        ]);
+
+        $this->assertEquals('This is a single line of text.', $notification->introLines[0]);
     }
 }
 
