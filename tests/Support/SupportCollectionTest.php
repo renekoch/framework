@@ -335,6 +335,16 @@ class SupportCollectionTest extends PHPUnit_Framework_TestCase
         );
     }
 
+    public function testWhereStrict()
+    {
+        $c = new Collection([['v' => 3], ['v' => '3']]);
+
+        $this->assertEquals(
+            [['v' => 3]],
+            $c->whereStrict('v', 3)->values()->all()
+        );
+    }
+
     public function testWhereIn()
     {
         $c = new Collection([['v' => 1], ['v' => 2], ['v' => 3], ['v' => '3'], ['v' => 4]]);
@@ -1456,6 +1466,18 @@ class SupportCollectionTest extends PHPUnit_Framework_TestCase
     {
         $collection = new Collection([1, 2, 3, 4, 5, 6, 7, 8]);
         $this->assertEquals([3, 4, 5, 6], $collection->slice(-6, -2)->values()->toArray());
+    }
+
+    public function testCollectonFromTraversable()
+    {
+        $collection = new Collection(new \ArrayObject([1, 2, 3]));
+        $this->assertEquals([1, 2, 3], $collection->toArray());
+    }
+
+    public function testCollectonFromTraversableWithKeys()
+    {
+        $collection = new Collection(new \ArrayObject(['foo' => 1, 'bar' => 2, 'baz' => 3]));
+        $this->assertEquals(['foo' => 1, 'bar' => 2, 'baz' => 3], $collection->toArray());
     }
 }
 
