@@ -2,18 +2,18 @@
 
 use Illuminate\Notifications\Message;
 use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Channels\DatabaseChannel;
+use Illuminate\Notifications\Channels\BroadcastChannel;
 
-class NotificationDatabaseChannelTest extends PHPUnit_Framework_TestCase
+class NotificationBroadcastChannelTest extends PHPUnit_Framework_TestCase
 {
     public function tearDown()
     {
         Mockery::close();
     }
 
-    public function testDatabaseChannelCreatesDatabaseRecordWithProperData()
+    public function testBroadcastChannelCreatesDatabaseRecordWithProperData()
     {
-        $notification = new NotificationDatabaseChannelTestNotification;
+        $notification = new NotificationBroadcastChannelTestNotification;
         $notifiables = collect([$notifiable = Mockery::mock()]);
 
         $notifiable->shouldReceive('routeNotificationFor->create')->with([
@@ -26,12 +26,15 @@ class NotificationDatabaseChannelTest extends PHPUnit_Framework_TestCase
             'read' => false,
         ]);
 
-        $channel = new DatabaseChannel;
+        $events = Mockery::mock('Illuminate\Contracts\Events\Dispatcher');
+        $events->shouldReceive('fire')->once()->with('Illuminate\Notifications\Events\DatabaseNotificationCreated');
+
+        $channel = new BroadcastChannel($events);
         $channel->send($notifiables, $notification);
     }
 }
 
-class NotificationDatabaseChannelTestNotification extends Notification
+class NotificationBroadcastChannelTestNotification extends Notification
 {
     public function message($notifiable)
     {

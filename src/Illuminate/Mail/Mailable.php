@@ -289,7 +289,7 @@ class Mailable implements MailableContract
      */
     public function from($address, $name = null)
     {
-        $this->setAddress($address, $name, 'from');
+        return $this->setAddress($address, $name, 'from');
     }
 
     /**
@@ -345,6 +345,7 @@ class Mailable implements MailableContract
      *
      * @param  object|array|string  $address
      * @param  string|null  $name
+     * @param  string  $property
      * @return $this
      */
     protected function setAddress($address, $name = null, $property = 'to')

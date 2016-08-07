@@ -16,14 +16,29 @@ class DatabaseChannel
     public function send($notifiables, Notification $notification)
     {
         foreach ($notifiables as $notifiable) {
-            $notifiable->routeNotificationFor('database')->create([
-                'level' => $notification->level,
-                'intro' => $notification->introLines,
-                'outro' => $notification->outroLines,
-                'action_text' => $notification->actionText,
-                'action_url' => $notification->actionUrl,
-                'read' => false,
-            ]);
+            $this->createNotification($notifiable, $notification);
         }
+    }
+
+    /**
+     * Create a database notification record for the notifiable.
+     *
+     * @param  mixed  $notifiable
+     * @param  \Illuminate\Notifications\Notification  $notification
+     * @return \Illuminate\Notifications\DatabaseNotification
+     */
+    protected function createNotification($notifiable, Notification $notification)
+    {
+        $message = $notification->message($notifiable);
+
+        return $notifiable->routeNotificationFor('database')->create([
+            'type' => get_class($notification),
+            'level' => $message->level,
+            'intro' => $message->introLines,
+            'outro' => $message->outroLines,
+            'action_text' => $message->actionText,
+            'action_url' => $message->actionUrl,
+            'read' => false,
+        ]);
     }
 }

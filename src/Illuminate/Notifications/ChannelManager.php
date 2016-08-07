@@ -38,7 +38,7 @@ class ChannelManager extends Manager implements DispatcherContract, FactoryContr
     }
 
     /**
-     * Send the given notification immtediately.
+     * Send the given notification immediately.
      *
      * @param  \Illuminate\Support\Collection|array  $notifiables
      * @param  mixed  $notification
@@ -46,8 +46,6 @@ class ChannelManager extends Manager implements DispatcherContract, FactoryContr
      */
     public function sendNow($notifiables, $notification)
     {
-        $notification->message();
-
         if (! $notification->application) {
             $notification->application(
                 $this->app['config']['app.name'],
@@ -75,8 +73,8 @@ class ChannelManager extends Manager implements DispatcherContract, FactoryContr
     /**
      * Queue the given notification instances.
      *
-     * @param  mixed  $notification
-     * @param  array[\Illuminate\Notifcations\Channels\Notification]
+     * @param  mixed  $notifiables
+     * @param  array[\Illuminate\Notifcations\Channels\Notification]  $notification
      * @return void
      */
     protected function queueNotification($notifiables, $notification)
@@ -108,6 +106,16 @@ class ChannelManager extends Manager implements DispatcherContract, FactoryContr
     protected function createDatabaseDriver()
     {
         return $this->app->make(Channels\DatabaseChannel::class);
+    }
+
+    /**
+     * Create an instance of the broadcast driver.
+     *
+     * @return \Illuminate\Notifications\Channels\BroadcastChannel
+     */
+    protected function createBroadcastDriver()
+    {
+        return $this->app->make(Channels\BroadcastChannel::class);
     }
 
     /**
@@ -196,18 +204,5 @@ class ChannelManager extends Manager implements DispatcherContract, FactoryContr
     public function deliverVia($channels)
     {
         $this->defaultChannels = (array) $channels;
-    }
-
-    /**
-     * Build a new channel notification from the given object.
-     *
-     * @param  mixed  $notifiable
-     * @param  mixed  $notification
-     * @param  array|null  $channels
-     * @return array
-     */
-    public function notificationsFromInstance($notifiable, $notification, $channels = null)
-    {
-        return Channels\Notification::notificationsFromInstance($notifiable, $notification, $channels);
     }
 }

@@ -1149,7 +1149,7 @@ class Validator implements ValidatorContract
     {
         $this->requireParameterCount(1, $parameters, 'digits');
 
-        return $this->validateNumeric($attribute, $value)
+        return ! preg_match('/[^0-9]/', $value)
             && strlen((string) $value) == $parameters[0];
     }
 
@@ -1167,7 +1167,7 @@ class Validator implements ValidatorContract
 
         $length = strlen((string) $value);
 
-        return $this->validateNumeric($attribute, $value)
+        return ! preg_match('/[^0-9]/', $value)
           && $length >= $parameters[0] && $length <= $parameters[1];
     }
 
@@ -1274,6 +1274,12 @@ class Validator implements ValidatorContract
     protected function validateIn($attribute, $value, $parameters)
     {
         if (is_array($value) && $this->hasRule($attribute, 'Array')) {
+            foreach ($value as $element) {
+                if (is_array($element)) {
+                    return false;
+                }
+            }
+
             return count(array_diff($value, $parameters)) == 0;
         }
 

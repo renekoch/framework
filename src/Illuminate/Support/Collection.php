@@ -4,6 +4,7 @@ namespace Illuminate\Support;
 
 use Countable;
 use ArrayAccess;
+use Traversable;
 use ArrayIterator;
 use CachingIterator;
 use JsonSerializable;
@@ -308,6 +309,18 @@ class Collection implements ArrayAccess, Arrayable, Countable, IteratorAggregate
                 case '!==': return $retrieved !== $value;
             }
         };
+    }
+
+    /**
+     * Filter items by the given key value pair using strict comparison.
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @return static
+     */
+    public function whereStrict($key, $value)
+    {
+        return $this->where($key, '===', $value);
     }
 
     /**
@@ -1169,6 +1182,16 @@ class Collection implements ArrayAccess, Arrayable, Countable, IteratorAggregate
     }
 
     /**
+     * Get a base Support collection instance from this collection.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function toBase()
+    {
+        return is_subclass_of($this, self::class) ? new self($this) : $this;
+    }
+
+    /**
      * Determine if an item exists at an offset.
      *
      * @param  mixed  $key
@@ -1245,6 +1268,8 @@ class Collection implements ArrayAccess, Arrayable, Countable, IteratorAggregate
             return json_decode($items->toJson(), true);
         } elseif ($items instanceof JsonSerializable) {
             return $items->jsonSerialize();
+        } elseif ($items instanceof Traversable) {
+            return iterator_to_array($items);
         }
 
         return (array) $items;
