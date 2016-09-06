@@ -252,8 +252,8 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $model = $this->getMock('EloquentDateModelStub', ['getDateFormat']);
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d'));
         $model->setRawAttributes([
-            'created_at'    => '2012-12-04',
-            'updated_at'    => '2012-12-05',
+            'created_at' => '2012-12-04',
+            'updated_at' => '2012-12-05',
         ]);
 
         $this->assertInstanceOf('Carbon\Carbon', $model->created_at);
@@ -265,8 +265,8 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $model = $this->getMock('EloquentDateModelStub', ['getDateFormat']);
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d H:i:s'));
         $model->setRawAttributes([
-            'created_at'    => '2012-12-04',
-            'updated_at'    => time(),
+            'created_at' => '2012-12-04',
+            'updated_at' => time(),
         ]);
 
         $this->assertInstanceOf('Carbon\Carbon', $model->created_at);
@@ -698,17 +698,6 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertArrayNotHasKey('age', $array);
     }
 
-    public function testHiddenAreIgnoringWhenVisibleExists()
-    {
-        $model = new EloquentModelStub(['name' => 'foo', 'age' => 'bar', 'id' => 'baz']);
-        $model->setVisible(['name', 'id']);
-        $model->setHidden(['name', 'age']);
-        $array = $model->toArray();
-        $this->assertArrayHasKey('name', $array);
-        $this->assertArrayHasKey('id', $array);
-        $this->assertArrayNotHasKey('age', $array);
-    }
-
     public function testDynamicHidden()
     {
         $model = new EloquentModelDynamicHiddenStub(['name' => 'foo', 'age' => 'bar', 'id' => 'baz']);
@@ -726,6 +715,28 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('name', $array);
         $this->assertArrayHasKey('age', $array);
         $this->assertArrayNotHasKey('id', $array);
+    }
+
+    public function testMakeHidden()
+    {
+        $model = new EloquentModelStub(['name' => 'foo', 'age' => 'bar', 'address' => 'foobar', 'id' => 'baz']);
+        $array = $model->toArray();
+        $this->assertArrayHasKey('name', $array);
+        $this->assertArrayHasKey('age', $array);
+        $this->assertArrayHasKey('address', $array);
+        $this->assertArrayHasKey('id', $array);
+
+        $array = $model->makeHidden('address')->toArray();
+        $this->assertArrayNotHasKey('address', $array);
+        $this->assertArrayHasKey('name', $array);
+        $this->assertArrayHasKey('age', $array);
+        $this->assertArrayHasKey('id', $array);
+
+        $array = $model->makeHidden(['name', 'age'])->toArray();
+        $this->assertArrayNotHasKey('name', $array);
+        $this->assertArrayNotHasKey('age', $array);
+        $this->assertArrayNotHasKey('address', $array);
+        $this->assertArrayHasKey('id', $array);
     }
 
     public function testDynamicVisible()
@@ -1327,7 +1338,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue(isset($model->some_relation));
     }
 
-    public function testIntIdTypePreserved()
+    public function testIntKeyTypePreserved()
     {
         $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
@@ -1338,9 +1349,9 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(1, $model->id);
     }
 
-    public function testStringIdTypePreserved()
+    public function testStringKeyTypePreserved()
     {
-        $model = $this->getMock('EloquentIdTypeModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMock('EloquentKeyTypeModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with([], 'id')->andReturn('string id');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -1493,7 +1504,7 @@ class EloquentModelSaveStub extends Model
     }
 }
 
-class EloquentIdTypeModelStub extends EloquentModelStub
+class EloquentKeyTypeModelStub extends EloquentModelStub
 {
     protected $keyType = 'string';
 }
