@@ -195,6 +195,23 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($model->save());
     }
 
+    public function testSaveDoesntUpateTimestampsIfTouchOptionDisabled()
+    {
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'fireModelEvent'])->getMock();
+        $query = m::mock('Illuminate\Database\Eloquent\Builder');
+        $query->shouldReceive('where')->once()->with('id', '=', 1);
+        $query->shouldReceive('update')->once()->with(['name' => 'taylor'])->andReturn(1);
+        $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
+        $model->expects($this->never())->method('updateTimestamps');
+        $model->expects($this->any())->method('fireModelEvent')->will($this->returnValue(true));
+
+        $model->id = 1;
+        $model->syncOriginal();
+        $model->name = 'taylor';
+        $model->exists = true;
+        $this->assertTrue($model->save(['touch' => false]));
+    }
+
     public function testSaveIsCancelledIfSavingEventReturnsFalse()
     {
         $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes'])->getMock();
@@ -267,8 +284,8 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $model = $this->getMockBuilder('EloquentDateModelStub')->setMethods(['getDateFormat'])->getMock();
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d'));
         $model->setRawAttributes([
-            'created_at'    => '2012-12-04',
-            'updated_at'    => '2012-12-05',
+            'created_at' => '2012-12-04',
+            'updated_at' => '2012-12-05',
         ]);
 
         $this->assertInstanceOf('Carbon\Carbon', $model->created_at);
@@ -280,8 +297,8 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $model = $this->getMockBuilder('EloquentDateModelStub')->setMethods(['getDateFormat'])->getMock();
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d H:i:s'));
         $model->setRawAttributes([
-            'created_at'    => '2012-12-04',
-            'updated_at'    => time(),
+            'created_at' => '2012-12-04',
+            'updated_at' => time(),
         ]);
 
         $this->assertInstanceOf('Carbon\Carbon', $model->created_at);
@@ -713,17 +730,6 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertArrayNotHasKey('age', $array);
     }
 
-    public function testHiddenAreIgnoringWhenVisibleExists()
-    {
-        $model = new EloquentModelStub(['name' => 'foo', 'age' => 'bar', 'id' => 'baz']);
-        $model->setVisible(['name', 'id']);
-        $model->setHidden(['name', 'age']);
-        $array = $model->toArray();
-        $this->assertArrayHasKey('name', $array);
-        $this->assertArrayHasKey('id', $array);
-        $this->assertArrayNotHasKey('age', $array);
-    }
-
     public function testDynamicHidden()
     {
         $model = new EloquentModelDynamicHiddenStub(['name' => 'foo', 'age' => 'bar', 'id' => 'baz']);
@@ -741,6 +747,28 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertArrayHasKey('name', $array);
         $this->assertArrayHasKey('age', $array);
         $this->assertArrayNotHasKey('id', $array);
+    }
+
+    public function testMakeHidden()
+    {
+        $model = new EloquentModelStub(['name' => 'foo', 'age' => 'bar', 'address' => 'foobar', 'id' => 'baz']);
+        $array = $model->toArray();
+        $this->assertArrayHasKey('name', $array);
+        $this->assertArrayHasKey('age', $array);
+        $this->assertArrayHasKey('address', $array);
+        $this->assertArrayHasKey('id', $array);
+
+        $array = $model->makeHidden('address')->toArray();
+        $this->assertArrayNotHasKey('address', $array);
+        $this->assertArrayHasKey('name', $array);
+        $this->assertArrayHasKey('age', $array);
+        $this->assertArrayHasKey('id', $array);
+
+        $array = $model->makeHidden(['name', 'age'])->toArray();
+        $this->assertArrayNotHasKey('name', $array);
+        $this->assertArrayNotHasKey('age', $array);
+        $this->assertArrayNotHasKey('address', $array);
+        $this->assertArrayHasKey('id', $array);
     }
 
     public function testDynamicVisible()
@@ -928,10 +956,32 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
     {
         $model = new EloquentModelStub;
         $this->addMockConnection($model);
+
+        // $this->morphTo();
         $relation = $model->morphToStub();
         $this->assertEquals('morph_to_stub_id', $relation->getForeignKey());
+        $this->assertEquals('morph_to_stub_type', $relation->getMorphType());
+        $this->assertEquals('morphToStub', $relation->getRelation());
         $this->assertSame($model, $relation->getParent());
         $this->assertInstanceOf('EloquentModelSaveStub', $relation->getQuery()->getModel());
+
+        // $this->morphTo(null, 'type', 'id');
+        $relation2 = $model->morphToStubWithKeys();
+        $this->assertEquals('id', $relation2->getForeignKey());
+        $this->assertEquals('type', $relation2->getMorphType());
+        $this->assertEquals('morphToStubWithKeys', $relation2->getRelation());
+
+        // $this->morphTo('someName');
+        $relation3 = $model->morphToStubWithName();
+        $this->assertEquals('some_name_id', $relation3->getForeignKey());
+        $this->assertEquals('some_name_type', $relation3->getMorphType());
+        $this->assertEquals('someName', $relation3->getRelation());
+
+        // $this->morphTo('someName', 'type', 'id');
+        $relation4 = $model->morphToStubWithNameAndKeys();
+        $this->assertEquals('id', $relation4->getForeignKey());
+        $this->assertEquals('type', $relation4->getMorphType());
+        $this->assertEquals('someName', $relation4->getRelation());
     }
 
     public function testBelongsToManyCreatesProperRelation()
@@ -1326,7 +1376,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue(isset($model->some_relation));
     }
 
-    public function testIntIdTypePreserved()
+    public function testIntKeyTypePreserved()
     {
         $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
@@ -1337,9 +1387,9 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(1, $model->id);
     }
 
-    public function testStringIdTypePreserved()
+    public function testStringKeyTypePreserved()
     {
-        $model = $this->getMockBuilder('EloquentIdTypeModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
+        $model = $this->getMockBuilder('EloquentKeyTypeModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with([], 'id')->andReturn('string id');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -1356,7 +1406,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $scopes = [
             'published',
             'category' => 'Laravel',
-            'framework' => ['Laravel', '5.2'],
+            'framework' => ['Laravel', '5.3'],
         ];
 
         $this->assertInstanceOf(Builder::class, $model->scopes($scopes));
@@ -1461,6 +1511,21 @@ class EloquentModelStub extends Model
         return $this->morphTo();
     }
 
+    public function morphToStubWithKeys()
+    {
+        return $this->morphTo(null, 'type', 'id');
+    }
+
+    public function morphToStubWithName()
+    {
+        return $this->morphTo('someName');
+    }
+
+    public function morphToStubWithNameAndKeys()
+    {
+        return $this->morphTo('someName', 'type', 'id');
+    }
+
     public function belongsToExplicitKeyStub()
     {
         return $this->belongsTo('EloquentModelSaveStub', 'foo');
@@ -1526,7 +1591,7 @@ class EloquentModelSaveStub extends Model
     }
 }
 
-class EloquentIdTypeModelStub extends EloquentModelStub
+class EloquentKeyTypeModelStub extends EloquentModelStub
 {
     protected $keyType = 'string';
 }

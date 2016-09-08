@@ -171,7 +171,9 @@ class Route
             $this->parametersWithoutNulls(), new ReflectionFunction($this->action['uses'])
         );
 
-        return call_user_func_array($this->action['uses'], $parameters);
+        $callable = $this->action['uses'];
+
+        return $callable(...array_values($parameters));
     }
 
     /**
@@ -664,8 +666,8 @@ class Route
         // validator implementations. We will spin through each one making sure it
         // passes and then we will know if the route as a whole matches request.
         return static::$validators = [
-            new MethodValidator, new SchemeValidator,
-            new HostValidator, new UriValidator,
+            new UriValidator, new MethodValidator,
+            new SchemeValidator, new HostValidator,
         ];
     }
 
@@ -818,7 +820,8 @@ class Route
      */
     public function domain()
     {
-        return isset($this->action['domain']) ? $this->action['domain'] : null;
+        return isset($this->action['domain'])
+                ? str_replace(['http://', 'https://'], '', $this->action['domain']) : null;
     }
 
     /**

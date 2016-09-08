@@ -267,6 +267,17 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($files->isWritable($this->tempDir.'/foo.txt'));
     }
 
+    public function testIsReadable()
+    {
+        file_put_contents($this->tempDir.'/foo.txt', 'foo');
+        $files = new Filesystem();
+        @chmod($this->tempDir.'/foo.txt', 0000);
+        $this->assertFalse($files->isReadable($this->tempDir.'/foo.txt'));
+        $this->assertFalse($files->isReadable($this->tempDir.'/bar.txt'));
+        @chmod($this->tempDir.'/foo.txt', 0777);
+        $this->assertTrue($files->isReadable($this->tempDir.'/foo.txt'));
+    }
+
     public function testGlobFindsFiles()
     {
         file_put_contents($this->tempDir.'/foo.txt', 'foo');
@@ -312,6 +323,10 @@ class FilesystemTest extends PHPUnit_Framework_TestCase
      */
     public function testSharedGet()
     {
+        if (! function_exists('pcntl_fork')) {
+            $this->markTestSkipped('Skipping since the pcntl extension is not available');
+        }
+
         $content = '';
         for ($i = 0; $i < 1000000; ++$i) {
             $content .= $i;

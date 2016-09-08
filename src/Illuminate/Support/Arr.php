@@ -134,7 +134,13 @@ class Arr
     public static function first($array, callable $callback = null, $default = null)
     {
         if (is_null($callback)) {
-            return empty($array) ? value($default) : reset($array);
+            if (empty($array)) {
+                return value($default);
+            }
+
+            foreach ($array as $item) {
+                return $item;
+            }
         }
 
         foreach ($array as $key => $value) {
@@ -263,31 +269,41 @@ class Arr
     }
 
     /**
-     * Check if an item exists in an array using "dot" notation.
+     * Check if an item or items exist in an array using "dot" notation.
      *
      * @param  \ArrayAccess|array  $array
-     * @param  string  $key
+     * @param  string|array  $keys
      * @return bool
      */
-    public static function has($array, $key)
+    public static function has($array, $keys)
     {
+        if (is_null($keys)) {
+            return false;
+        }
+
+        $keys = (array) $keys;
+
         if (! $array) {
             return false;
         }
 
-        if (is_null($key)) {
+        if ($keys === []) {
             return false;
         }
 
-        if (static::exists($array, $key)) {
-            return true;
-        }
+        foreach ($keys as $key) {
+            $subKeyArray = $array;
 
-        foreach (explode('.', $key) as $segment) {
-            if (static::accessible($array) && static::exists($array, $segment)) {
-                $array = $array[$segment];
-            } else {
-                return false;
+            if (static::exists($array, $key)) {
+                continue;
+            }
+
+            foreach (explode('.', $key) as $segment) {
+                if (static::accessible($subKeyArray) && static::exists($subKeyArray, $segment)) {
+                    $subKeyArray = $subKeyArray[$segment];
+                } else {
+                    return false;
+                }
             }
         }
 
@@ -442,13 +458,13 @@ class Arr
     }
 
     /**
-     * Sort the array using the given callback.
+     * Sort the array using the given callback or "dot" notation.
      *
      * @param  array  $array
-     * @param  callable  $callback
+     * @param  callable|string  $callback
      * @return array
      */
-    public static function sort($array, callable $callback)
+    public static function sort($array, $callback)
     {
         return Collection::make($array)->sortBy($callback)->all();
     }

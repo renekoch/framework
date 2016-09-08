@@ -323,7 +323,7 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $trans->addResource('array', ['validation.in' => ':attribute must be included in :values.'], 'en', 'messages');
         $customValues = [
             'type' => [
-                '5'   => 'Short',
+                '5' => 'Short',
                 '300' => 'Long',
             ],
         ];
@@ -338,7 +338,7 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $trans->addResource('array', ['validation.in' => ':attribute must be included in :values.'], 'en', 'messages');
         $customValues = [
             'type' => [
-                '5'   => 'Short',
+                '5' => 'Short',
                 '300' => 'Long',
             ],
         ];
@@ -472,6 +472,27 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
 
         $v = new Validator($trans, ['foo' => [['id' => null]]], ['foo.*.id' => 'filled']);
         $this->assertFalse($v->passes());
+    }
+
+    public function testValidationStopsAtFailedPresenceCheck()
+    {
+        $trans = $this->getRealTranslator();
+
+        $v = new Validator($trans, ['name' => null], ['name' => 'Required|string']);
+        $v->passes();
+        $this->assertEquals(['validation.required'], $v->errors()->get('name'));
+
+        $v = new Validator($trans, ['name' => null, 'email' => 'email'], ['name' => 'required_with:email|string']);
+        $v->passes();
+        $this->assertEquals(['validation.required_with'], $v->errors()->get('name'));
+
+        $v = new Validator($trans, ['name' => null, 'email' => ''], ['name' => 'required_with:email|string']);
+        $v->passes();
+        $this->assertEquals(['validation.string'], $v->errors()->get('name'));
+
+        $v = new Validator($trans, [], ['name' => 'present|string']);
+        $v->passes();
+        $this->assertEquals(['validation.present'], $v->errors()->get('name'));
     }
 
     public function testValidatePresent()
@@ -746,6 +767,46 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $v = new Validator($trans, ['first' => 'dayle', 'last' => ''], ['last' => 'RequiredUnless:first,taylor,sven']);
         $this->assertFalse($v->passes());
         $this->assertEquals('The last field is required unless first is in taylor, sven.', $v->messages()->first('last'));
+    }
+
+    public function testFailedFileUploads()
+    {
+        $trans = $this->getRealTranslator();
+
+        // If file is not successfully uploaded validation should fail with a
+        // 'uploaded' error message instead of the original rule.
+        $file = m::mock('Symfony\Component\HttpFoundation\File\UploadedFile');
+        $file->shouldReceive('isValid')->andReturn(false);
+        $file->shouldNotReceive('getSize');
+        $v = new Validator($trans, [], ['photo' => 'Max:10']);
+        $v->setFiles(['photo' => $file]);
+        $this->assertTrue($v->fails());
+        $this->assertEquals(['validation.uploaded'], $v->errors()->get('photo'));
+
+        // Even "required" will not run if the file failed to upload.
+        $file = m::mock('Symfony\Component\HttpFoundation\File\UploadedFile');
+        $file->shouldReceive('isValid')->once()->andReturn(false);
+        $v = new Validator($trans, [], ['photo' => 'required']);
+        $v->setFiles(['photo' => $file]);
+        $this->assertTrue($v->fails());
+        $this->assertEquals(['validation.uploaded'], $v->errors()->get('photo'));
+
+        // It should only fail with that rule if a validation rule implies it's
+        // a file. Otherwise it should fail with the regular rule.
+        $file = m::mock('Symfony\Component\HttpFoundation\File\UploadedFile');
+        $file->shouldReceive('isValid')->andReturn(false);
+        $v = new Validator($trans, [], ['photo' => 'string']);
+        $v->setFiles(['photo' => $file]);
+        $this->assertTrue($v->fails());
+        $this->assertEquals(['validation.string'], $v->errors()->get('photo'));
+
+        // Validation shouldn't continue if a file failed to upload.
+        $file = m::mock('Symfony\Component\HttpFoundation\File\UploadedFile');
+        $file->shouldReceive('isValid')->once()->andReturn(false);
+        $v = new Validator($trans, [], ['photo' => 'file|mimes:pdf|min:10']);
+        $v->setFiles(['photo' => $file]);
+        $this->assertTrue($v->fails());
+        $this->assertEquals(['validation.uploaded'], $v->errors()->get('photo'));
     }
 
     public function testValidateInArray()
@@ -1166,7 +1227,7 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $this->assertFalse($v->passes());
 
         $file = $this->getMockBuilder('Symfony\Component\HttpFoundation\File\UploadedFile')->setMethods(['isValid', 'getSize'])->setConstructorArgs([__FILE__, basename(__FILE__)])->getMock();
-        $file->expects($this->at(0))->method('isValid')->will($this->returnValue(true));
+        $file->expects($this->any())->method('isValid')->will($this->returnValue(true));
         $file->expects($this->at(1))->method('getSize')->will($this->returnValue(3072));
         $v = new Validator($trans, [], ['photo' => 'Max:10']);
         $v->setFiles(['photo' => $file]);
@@ -3045,6 +3106,76 @@ class ValidationValidatorTest extends PHPUnit_Framework_TestCase
         $v = new Validator($trans, ['foo' => ['a', 'b', 'c']], ['foo.*' => 'string']);
         $v->setRules(['foo.*' => 'integer']);
         $this->assertFalse($v->passes());
+    }
+
+    public function testInvalidMethod()
+    {
+        $trans = $this->getRealTranslator();
+
+        $v = new Validator($trans,
+            [
+                ['name' => 'John'],
+                ['name' => null],
+                ['name' => ''],
+            ],
+            [
+                '*.name' => 'required',
+            ]);
+
+        $this->assertEquals($v->invalid(), [
+            1 => ['name' => null],
+            2 => ['name' => ''],
+        ]);
+
+        $v = new Validator($trans,
+            [
+                'name' => '',
+            ],
+            [
+                'name' => 'required',
+            ]);
+
+        $this->assertEquals($v->invalid(), [
+            'name' => '',
+        ]);
+    }
+
+    public function testValidMethod()
+    {
+        $trans = $this->getRealTranslator();
+
+        $v = new Validator($trans,
+            [
+                ['name' => 'John'],
+                ['name' => null],
+                ['name' => ''],
+                ['name' => 'Doe'],
+            ],
+            [
+                '*.name' => 'required',
+            ]);
+
+        $this->assertEquals($v->valid(), [
+            0 => ['name' => 'John'],
+            3 => ['name' => 'Doe'],
+        ]);
+
+        $v = new Validator($trans,
+            [
+                'name' => 'Carlos',
+                'age' => 'unknown',
+                'gender' => 'male',
+            ],
+            [
+                'name' => 'required',
+                'gender' => 'in:male,female',
+                'age' => 'required|int',
+            ]);
+
+        $this->assertEquals($v->valid(), [
+            'name' => 'Carlos',
+            'gender' => 'male',
+        ]);
     }
 
     protected function getTranslator()

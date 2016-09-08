@@ -98,8 +98,6 @@ trait MocksApplicationServices
      */
     protected function withoutEvents()
     {
-        $this->withoutModelEvents();
-
         $mock = Mockery::mock('Illuminate\Contracts\Events\Dispatcher');
 
         $mock->shouldReceive('fire')->andReturnUsing(function ($called) {
@@ -379,7 +377,7 @@ trait MocksApplicationServices
     {
         $mock = Mockery::mock(NotificationDispatcher::class);
 
-        $mock->shouldReceive('dispatch')->andReturnUsing(function ($notifiable, $instance, $channels = []) {
+        $mock->shouldReceive('send')->andReturnUsing(function ($notifiable, $instance, $channels = []) {
             $this->dispatchedNotifications[] = compact(
                 'notifiable', 'instance', 'channels'
             );
@@ -403,10 +401,13 @@ trait MocksApplicationServices
 
         $this->beforeApplicationDestroyed(function () use ($notifiable, $notification) {
             foreach ($this->dispatchedNotifications as $dispatched) {
-                if (($dispatched['notifiable'] === $notifiable ||
-                    $dispatched['notifiable']->getKey() == $notifiable->getKey()) &&
-                    get_class($dispatched['instance']) === $notification) {
-                    return $this;
+                foreach ($dispatched['notifiable'] as $notified) {
+                    if (($notified === $notifiable ||
+                         $notified->getKey() == $notifiable->getKey()) &&
+                        get_class($dispatched['instance']) === $notification
+                    ) {
+                        return $this;
+                    }
                 }
             }
 
