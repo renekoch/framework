@@ -158,7 +158,7 @@ if (! function_exists('array_get')) {
 
 if (! function_exists('array_has')) {
     /**
-     * Check if an item exists in an array using "dot" notation.
+     * Check if an item or items exist in an array using "dot" notation.
      *
      * @param  \ArrayAccess|array  $array
      * @param  string|array  $keys
@@ -598,7 +598,7 @@ if (! function_exists('preg_replace_array')) {
      */
     function preg_replace_array($pattern, array $replacements, $subject)
     {
-        return preg_replace_callback($pattern, function ($match) use (&$replacements) {
+        return preg_replace_callback($pattern, function () use (&$replacements) {
             foreach ($replacements as $key => $value) {
                 return array_shift($replacements);
             }

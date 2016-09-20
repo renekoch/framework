@@ -3,6 +3,7 @@
 namespace Illuminate\Support\Testing\Fakes;
 
 use Ramsey\Uuid\Uuid;
+use Illuminate\Support\Collection;
 use PHPUnit_Framework_Assert as PHPUnit;
 use Illuminate\Contracts\Notifications\Factory as NotificationFactory;
 
@@ -23,7 +24,7 @@ class NotificationFake implements NotificationFactory
      * @param  callable|null  $callback
      * @return void
      */
-    public function assertSent($notifiable, $notification, $callback = null)
+    public function assertSentTo($notifiable, $notification, $callback = null)
     {
         PHPUnit::assertTrue(
             $this->sent($notifiable, $notification, $callback)->count() > 0,
@@ -39,7 +40,7 @@ class NotificationFake implements NotificationFactory
      * @param  callable|null  $callback
      * @return void
      */
-    public function assertNotSent($notifiable, $notification, $callback = null)
+    public function assertNotSentTo($notifiable, $notification, $callback = null)
     {
         PHPUnit::assertTrue(
             $this->sent($notifiable, $notification, $callback)->count() === 0,

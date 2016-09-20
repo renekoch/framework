@@ -665,7 +665,7 @@ class Request extends SymfonyRequest implements Arrayable, ArrayAccess
             return $this->json();
         }
 
-        return $this->getMethod() == 'GET' ? $this->query : $this->request;
+        return $this->getRealMethod() == 'GET' ? $this->query : $this->request;
     }
 
     /**
@@ -880,7 +880,7 @@ class Request extends SymfonyRequest implements Arrayable, ArrayAccess
                 $files[$key] = $this->filterFiles($files[$key]);
             }
 
-            if (! $files[$key]) {
+            if (empty($files[$key])) {
                 unset($files[$key]);
             }
         }
