@@ -55,6 +55,15 @@ class SupportMessageBagTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(['bar', 'baz'], $container->get('foo'));
     }
 
+    public function testGetReturnsArrayOfMessagesByImplicitKey()
+    {
+        $container = new MessageBag;
+        $container->setFormat(':message');
+        $container->add('foo.1', 'bar');
+        $container->add('foo.2', 'baz');
+        $this->assertEquals(['foo.1' => ['bar'], 'foo.2' => ['baz']], $container->get('foo.*'));
+    }
+
     public function testFirstReturnsSingleMessage()
     {
         $container = new MessageBag;
@@ -72,7 +81,6 @@ class SupportMessageBagTest extends PHPUnit_Framework_TestCase
         $container->add('foo', 'bar');
         $this->assertTrue($container->has('foo'));
         $this->assertFalse($container->has('bar'));
-        $this->assertTrue($container->has());
     }
 
     public function testHasAnyIndicatesExistence()
@@ -105,7 +113,6 @@ class SupportMessageBagTest extends PHPUnit_Framework_TestCase
         $container->setFormat(':message');
 
         $this->assertFalse($container->has('foo'));
-        $this->assertFalse($container->has());
     }
 
     public function testAllReturnsAllMessages()

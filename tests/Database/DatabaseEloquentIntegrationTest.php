@@ -49,6 +49,7 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
         foreach (['default', 'second_connection'] as $connection) {
             $this->schema($connection)->create('users', function ($table) {
                 $table->increments('id');
+                $table->string('name')->nullable();
                 $table->string('email');
                 $table->timestamps();
             });
@@ -99,6 +100,8 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
     {
         EloquentTestUser::create(['id' => 1, 'email' => 'taylorotwell@gmail.com']);
         EloquentTestUser::create(['id' => 2, 'email' => 'abigailotwell@gmail.com']);
+
+        $this->assertEquals(2, EloquentTestUser::count());
 
         $model = EloquentTestUser::where('email', 'taylorotwell@gmail.com')->first();
         $this->assertEquals('taylorotwell@gmail.com', $model->email);
@@ -220,6 +223,32 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
         $query = EloquentTestUser::groupBy('email')->getQuery();
 
         $this->assertEquals(3, $query->getCountForPagination());
+    }
+
+    public function testFirstOrCreate()
+    {
+        $user1 = EloquentTestUser::firstOrCreate(['email' => 'taylorotwell@gmail.com']);
+
+        $this->assertEquals('taylorotwell@gmail.com', $user1->email);
+        $this->assertNull($user1->name);
+
+        $user2 = EloquentTestUser::firstOrCreate(
+            ['email' => 'taylorotwell@gmail.com'],
+            ['name' => 'Taylor Otwell']
+        );
+
+        $this->assertEquals($user1->id, $user2->id);
+        $this->assertEquals('taylorotwell@gmail.com', $user2->email);
+        $this->assertNull($user2->name);
+
+        $user3 = EloquentTestUser::firstOrCreate(
+            ['email' => 'abigailotwell@gmail.com'],
+            ['name' => 'Abigail Otwell']
+        );
+
+        $this->assertNotEquals($user3->id, $user1->id);
+        $this->assertEquals('abigailotwell@gmail.com', $user3->email);
+        $this->assertEquals('Abigail Otwell', $user3->name);
     }
 
     public function testPluck()
@@ -846,6 +875,13 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertCount(1, $result->getRelations());
     }
 
+    public function testModelIgnoredByGlobalScopeCanBeRefreshed()
+    {
+        $user = EloquentTestUserWithOmittingGlobalScope::create(['id' => 1, 'email' => 'taylorotwell@gmail.com']);
+
+        $this->assertNotNull($user->fresh());
+    }
+
     public function testForPageAfterIdCorrectlyPaginates()
     {
         EloquentTestUser::create(['id' => 1, 'email' => 'taylorotwell@gmail.com']);
@@ -945,6 +981,18 @@ class EloquentTestUserWithGlobalScope extends EloquentTestUser
 
         static::addGlobalScope(function ($builder) {
             $builder->with('posts');
+        });
+    }
+}
+
+class EloquentTestUserWithOmittingGlobalScope extends EloquentTestUser
+{
+    public static function boot()
+    {
+        parent::boot();
+
+        static::addGlobalScope(function ($builder) {
+            $builder->where('email', '!=', 'taylorotwell@gmail.com');
         });
     }
 }

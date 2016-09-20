@@ -891,6 +891,68 @@ class BelongsToMany extends Relation
     }
 
     /**
+     * Toggles a model (or models) from the parent.
+     *
+     * Each existing model is detached, and non existing ones are attached.
+     *
+     * @param  mixed  $ids
+     * @param  bool   $touch
+     * @return array
+     */
+    public function toggle($ids, $touch = true)
+    {
+        $changes = [
+            'attached' => [], 'detached' => [],
+        ];
+
+        if ($ids instanceof Model) {
+            $ids = $ids->getKey();
+        }
+
+        if ($ids instanceof Collection) {
+            $ids = $ids->modelKeys();
+        }
+
+        // First we will execute a query to get all of the current attached IDs for
+        // the relationship, which will allow us to determine which of them will
+        // be attached and which of them will be detached from the join table.
+        $current = $this->newPivotQuery()
+                    ->pluck($this->otherKey)->all();
+
+        $records = $this->formatRecordsList((array) $ids);
+
+        // Next, we will determine which IDs should get removed from the join table
+        // by checking which of the given ID / records is in the list of current
+        // records. We will then remove all those rows from the joining table.
+        $detach = array_values(array_intersect(
+            $current, array_keys($records)
+        ));
+
+        if (count($detach) > 0) {
+            $this->detach($detach, false);
+
+            $changes['detached'] = $this->castKeys($detach);
+        }
+
+        // Finally, for all of the records that were not detached, we'll attach the
+        // records into the intermediate table. Then we'll add those attaches to
+        // the change list and be ready to return these results to the caller.
+        $attach = array_diff_key($records, array_flip($detach));
+
+        if (count($attach) > 0) {
+            $this->attach($attach, [], false);
+
+            $changes['attached'] = array_keys($attach);
+        }
+
+        if ($touch && (count($changes['attached']) || count($changes['detached']))) {
+            $this->touchIfTouching();
+        }
+
+        return $changes;
+    }
+
+    /**
      * Sync the intermediate tables with a list of IDs without detaching.
      *
      * @param  \Illuminate\Database\Eloquent\Collection|array  $ids
@@ -931,10 +993,8 @@ class BelongsToMany extends Relation
         // if they exist in the array of current ones, and if not we will insert.
         $current = $this->getCurrentOtherKeys();
 
-
         // hash keyed array
-        $records = $this->formatSyncList($ids);
-
+        $records = $this->formatRecordsList($ids);
 
         // Next, we will take the differences of the currents and given IDs and detach
         // all of the entities that exist in the "current" array but are not in the
@@ -948,7 +1008,7 @@ class BelongsToMany extends Relation
                     continue;
                 }
                 $detach[] = $current[ $hash ];
-                $changes[ 'detached' ][] = ctype_xdigit((string)$hash) ? (int)$hash : $current[ $hash ];
+                $changes[ 'detached' ][] = ctype_digit((string)$hash) ? (int)$hash : $current[ $hash ];
             }
 
             if (count($detach) > 0) {
@@ -976,26 +1036,27 @@ class BelongsToMany extends Relation
      *
      * @return array
      */
-    protected function getCurrentOtherKeys(){
+    protected function getCurrentOtherKeys()
+    {
 
-        $select= [];
-        $keys = [];
-        foreach($this->otherKey as $id => $column){
-            $keys[] = $id;
-            $select[] = $column .' as '.$id;
+        $select = [];
+        $keys   = [];
+        foreach ($this->otherKey as $id => $column) {
+            $keys[]   = $id;
+            $select[] = $column.' as '.$id;
         }
 
         return Arr::buildHashArray($this->newPivotQuery()->select($select)->get(), $keys, true);
     }
 
     /**
-     * Format the sync list so that it is keyed by ID.
+     * Format the sync/toggle list so that it is keyed by ID.
      *
      * @param  array $records
      *
      * @return array
      */
-    protected function formatSyncList(array $records)
+    protected function formatRecordsList(array $records)
     {
         $results   = [];
         $otherKeys = array_keys($this->otherKey);
@@ -1050,6 +1111,19 @@ class BelongsToMany extends Relation
         }
 
         return $changes;
+    }
+
+    /**
+     * Cast the given keys to integers if they are numeric and string otherwise.
+     *
+     * @param  array  $keys
+     * @return array
+     */
+    protected function castKeys(array $keys)
+    {
+        return (array) array_map(function ($v) {
+            return is_numeric($v) ? (int) $v : (string) $v;
+        }, $keys);
     }
 
     /**

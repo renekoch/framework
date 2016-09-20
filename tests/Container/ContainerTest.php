@@ -4,6 +4,20 @@ use Illuminate\Container\Container;
 
 class ContainerContainerTest extends PHPUnit_Framework_TestCase
 {
+    public function testContainerSingleton()
+    {
+        $container = Container::setInstance(new Container);
+
+        $this->assertSame($container, Container::getInstance());
+
+        Container::setInstance(null);
+
+        $container2 = Container::getInstance();
+
+        $this->assertInstanceOf(Container::class, $container2);
+        $this->assertNotSame($container, $container2);
+    }
+
     public function testClosureResolution()
     {
         $container = new Container;
@@ -54,7 +68,7 @@ class ContainerContainerTest extends PHPUnit_Framework_TestCase
     public function testParametersCanOverrideDependencies()
     {
         $container = new Container;
-        $stub = new ContainerDependentStub($mock = $this->getMock('IContainerContractStub'));
+        $stub = new ContainerDependentStub($mock = $this->createMock('IContainerContractStub'));
         $resolved = $container->make('ContainerNestedDependentStub', [$stub]);
         $this->assertInstanceOf('ContainerNestedDependentStub', $resolved);
         $this->assertEquals($mock, $resolved->inner->impl);
@@ -639,6 +653,13 @@ class ContainerContainerTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($container->resolved('foo'));
     }
 
+    public function testGetAlias()
+    {
+        $container = new Container;
+        $container->alias('ConcreteStub', 'foo');
+        $this->assertEquals($container->getAlias('foo'), 'ConcreteStub');
+    }
+
     public function testContainerCanInjectSimpleVariable()
     {
         $container = new Container;
@@ -652,6 +673,50 @@ class ContainerContainerTest extends PHPUnit_Framework_TestCase
         });
         $instance = $container->make('ContainerInjectVariableStub');
         $this->assertInstanceOf('ContainerConcreteStub', $instance->something);
+    }
+
+    public function testContainerGetFactory()
+    {
+        $container = new Container;
+        $container->bind('name', function () {
+            return 'Taylor';
+        });
+
+        $factory = $container->factory('name');
+        $this->assertEquals($container->make('name'), $factory());
+    }
+
+    public function testContainerGetFactoryWithDefaultParams()
+    {
+        $container = new Container;
+        $container->bind('foo', function ($c, $parameters) {
+            return $parameters;
+        });
+
+        $factory = $container->factory('foo', [1, 2, 3]);
+        $this->assertEquals([1, 2, 3], $factory());
+    }
+
+    public function testContainerGetFactoryWithOverridenParams()
+    {
+        $container = new Container;
+        $container->bind('foo', function ($c, $parameters) {
+            return $parameters;
+        });
+
+        $factory = $container->factory('foo', [1, 2, 3]);
+        $this->assertEquals([4, 2, 3], $factory([4]));
+    }
+
+    public function testContainerGetFactoryWithOverridenNamedParams()
+    {
+        $container = new Container;
+        $container->bind('foo', function ($c, $parameters) {
+            return $parameters;
+        });
+
+        $factory = $container->factory('foo', ['bar' => 1, 'baz' => 2]);
+        $this->assertEquals(['bar' => 1, 'baz' => 3], $factory(['baz' => 3]));
     }
 }
 

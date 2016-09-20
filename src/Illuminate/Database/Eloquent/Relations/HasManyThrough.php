@@ -454,7 +454,7 @@ class HasManyThrough extends Relation
     /**
      * Get the qualified foreign key on the "through" model.
      *
-     * @return string
+     * @return string[]
      */
     public function getThroughKey()
     {

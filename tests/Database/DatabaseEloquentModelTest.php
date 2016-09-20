@@ -46,6 +46,21 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($model->isDirty(['foo', 'bar']));
     }
 
+    public function testCleanAttributes()
+    {
+        $model = new EloquentModelStub(['foo' => '1', 'bar' => 2, 'baz' => 3]);
+        $model->syncOriginal();
+        $model->foo = 1;
+        $model->bar = 20;
+        $model->baz = 30;
+
+        $this->assertFalse($model->isClean());
+        $this->assertTrue($model->isClean('foo'));
+        $this->assertFalse($model->isClean('bar'));
+        $this->assertFalse($model->isClean('foo', 'bar'));
+        $this->assertFalse($model->isClean(['foo', 'bar']));
+    }
+
     public function testCalculatedAttributes()
     {
         $model = new EloquentModelStub;
@@ -140,7 +155,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testUpdateProcess()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('where')->once()->with('id', '=', 1);
         $query->shouldReceive('update')->once()->with(['name' => 'taylor'])->andReturn(1);
@@ -163,7 +178,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testUpdateProcessDoesntOverrideTimestamps()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('where')->once()->with('id', '=', 1);
         $query->shouldReceive('update')->once()->with(['created_at' => 'foo', 'updated_at' => 'bar'])->andReturn(1);
@@ -180,9 +195,26 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue($model->save());
     }
 
+    public function testSaveDoesntUpateTimestampsIfTouchOptionDisabled()
+    {
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'fireModelEvent'])->getMock();
+        $query = m::mock('Illuminate\Database\Eloquent\Builder');
+        $query->shouldReceive('where')->once()->with('id', '=', 1);
+        $query->shouldReceive('update')->once()->with(['name' => 'taylor'])->andReturn(1);
+        $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
+        $model->expects($this->never())->method('updateTimestamps');
+        $model->expects($this->any())->method('fireModelEvent')->will($this->returnValue(true));
+
+        $model->id = 1;
+        $model->syncOriginal();
+        $model->name = 'taylor';
+        $model->exists = true;
+        $this->assertTrue($model->save(['touch' => false]));
+    }
+
     public function testSaveIsCancelledIfSavingEventReturnsFalse()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
         $model->setEventDispatcher($events = m::mock('Illuminate\Contracts\Events\Dispatcher'));
@@ -194,7 +226,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testUpdateIsCancelledIfUpdatingEventReturnsFalse()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
         $model->setEventDispatcher($events = m::mock('Illuminate\Contracts\Events\Dispatcher'));
@@ -208,7 +240,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testUpdateProcessWithoutTimestamps()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'fireModelEvent']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'fireModelEvent'])->getMock();
         $model->timestamps = false;
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('where')->once()->with('id', '=', 1);
@@ -226,7 +258,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testUpdateUsesOldPrimaryKey()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('where')->once()->with('id', '=', 1);
         $query->shouldReceive('update')->once()->with(['id' => 2, 'foo' => 'bar'])->andReturn(1);
@@ -249,7 +281,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testTimestampsAreReturnedAsObjects()
     {
-        $model = $this->getMock('EloquentDateModelStub', ['getDateFormat']);
+        $model = $this->getMockBuilder('EloquentDateModelStub')->setMethods(['getDateFormat'])->getMock();
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d'));
         $model->setRawAttributes([
             'created_at' => '2012-12-04',
@@ -262,7 +294,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testTimestampsAreReturnedAsObjectsFromPlainDatesAndTimestamps()
     {
-        $model = $this->getMock('EloquentDateModelStub', ['getDateFormat']);
+        $model = $this->getMockBuilder('EloquentDateModelStub')->setMethods(['getDateFormat'])->getMock();
         $model->expects($this->any())->method('getDateFormat')->will($this->returnValue('Y-m-d H:i:s'));
         $model->setRawAttributes([
             'created_at' => '2012-12-04',
@@ -357,7 +389,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testInsertProcess()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -375,7 +407,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(1, $model->id);
         $this->assertTrue($model->exists);
 
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insert')->once()->with(['name' => 'taylor']);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -397,7 +429,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testInsertIsCancelledIfCreatingEventReturnsFalse()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
         $model->setEventDispatcher($events = m::mock('Illuminate\Contracts\Events\Dispatcher'));
@@ -410,7 +442,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testDeleteProperlyDeletesModel()
     {
-        $model = $this->getMock('Illuminate\Database\Eloquent\Model', ['newQueryWithoutScopes', 'updateTimestamps', 'touchOwners']);
+        $model = $this->getMockBuilder('Illuminate\Database\Eloquent\Model')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'touchOwners'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('where')->once()->with('id', '=', 1)->andReturn($query);
         $query->shouldReceive('delete')->once();
@@ -423,7 +455,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testPushNoRelations()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -439,7 +471,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testPushEmptyOneRelation()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -457,7 +489,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testPushOneRelation()
     {
-        $related1 = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $related1 = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'related1'], 'id')->andReturn(2);
         $related1->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -465,7 +497,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $related1->name = 'related1';
         $related1->exists = false;
 
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -486,7 +518,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testPushEmptyManyRelation()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -504,7 +536,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testPushManyRelation()
     {
-        $related1 = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $related1 = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'related1'], 'id')->andReturn(2);
         $related1->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -512,7 +544,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $related1->name = 'related1';
         $related1->exists = false;
 
-        $related2 = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $related2 = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'related2'], 'id')->andReturn(3);
         $related2->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -520,7 +552,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $related2->name = 'related2';
         $related2->exists = false;
 
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with(['name' => 'taylor'], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -924,10 +956,32 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
     {
         $model = new EloquentModelStub;
         $this->addMockConnection($model);
+
+        // $this->morphTo();
         $relation = $model->morphToStub();
         $this->assertEquals('morph_to_stub_id', $relation->getForeignKey());
+        $this->assertEquals('morph_to_stub_type', $relation->getMorphType());
+        $this->assertEquals('morphToStub', $relation->getRelation());
         $this->assertSame($model, $relation->getParent());
         $this->assertInstanceOf('EloquentModelSaveStub', $relation->getQuery()->getModel());
+
+        // $this->morphTo(null, 'type', 'id');
+        $relation2 = $model->morphToStubWithKeys();
+        $this->assertEquals('id', $relation2->getForeignKey());
+        $this->assertEquals('type', $relation2->getMorphType());
+        $this->assertEquals('morphToStubWithKeys', $relation2->getRelation());
+
+        // $this->morphTo('someName');
+        $relation3 = $model->morphToStubWithName();
+        $this->assertEquals('some_name_id', $relation3->getForeignKey());
+        $this->assertEquals('some_name_type', $relation3->getMorphType());
+        $this->assertEquals('someName', $relation3->getRelation());
+
+        // $this->morphTo('someName', 'type', 'id');
+        $relation4 = $model->morphToStubWithNameAndKeys();
+        $this->assertEquals('id', $relation4->getForeignKey());
+        $this->assertEquals('type', $relation4->getMorphType());
+        $this->assertEquals('someName', $relation4->getRelation());
     }
 
     public function testBelongsToManyCreatesProperRelation()
@@ -1191,22 +1245,6 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $model->touchOwners();
     }
 
-    public function testTimestampsAreNotUpdatedWithTimestampsFalseSaveOption()
-    {
-        $model = m::mock('EloquentModelStub[newQueryWithoutScopes]');
-        $query = m::mock('Illuminate\Database\Eloquent\Builder');
-        $query->shouldReceive('where')->once()->with('id', '=', 1);
-        $query->shouldReceive('update')->once()->with(['name' => 'taylor'])->andReturn(1);
-        $model->shouldReceive('newQueryWithoutScopes')->once()->andReturn($query);
-
-        $model->id = 1;
-        $model->syncOriginal();
-        $model->name = 'taylor';
-        $model->exists = true;
-        $this->assertTrue($model->save(['timestamps' => false]));
-        $this->assertNull($model->updated_at);
-    }
-
     public function testModelAttributesAreCastedWhenPresentInCastsArray()
     {
         $model = new EloquentModelCastingStub;
@@ -1338,9 +1376,30 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $this->assertTrue(isset($model->some_relation));
     }
 
+    public function testNonExistingAttributeWithInternalMethodNameDoesntCallMethod()
+    {
+        $model = m::mock('EloquentModelStub[delete,getRelationValue]');
+        $model->name = 'Spark';
+        $model->shouldNotReceive('delete');
+        $model->shouldReceive('getRelationValue')->once()->with('belongsToStub')->andReturn('relation');
+
+        // Can return a normal relation
+        $this->assertEquals('relation', $model->belongsToStub);
+
+        // Can return a normal attribute
+        $this->assertEquals('Spark', $model->name);
+
+        // Returns null for a Model.php method name
+        $this->assertNull($model->delete);
+
+        $model = m::mock('EloquentModelStub[delete]');
+        $model->delete = 123;
+        $this->assertEquals(123, $model->delete);
+    }
+
     public function testIntKeyTypePreserved()
     {
-        $model = $this->getMock('EloquentModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with([], 'id')->andReturn(1);
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -1351,7 +1410,7 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
 
     public function testStringKeyTypePreserved()
     {
-        $model = $this->getMock('EloquentKeyTypeModelStub', ['newQueryWithoutScopes', 'updateTimestamps', 'refresh']);
+        $model = $this->getMockBuilder('EloquentKeyTypeModelStub')->setMethods(['newQueryWithoutScopes', 'updateTimestamps', 'refresh'])->getMock();
         $query = m::mock('Illuminate\Database\Eloquent\Builder');
         $query->shouldReceive('insertGetId')->once()->with([], 'id')->andReturn('string id');
         $model->expects($this->once())->method('newQueryWithoutScopes')->will($this->returnValue($query));
@@ -1368,12 +1427,46 @@ class DatabaseEloquentModelTest extends PHPUnit_Framework_TestCase
         $scopes = [
             'published',
             'category' => 'Laravel',
-            'framework' => ['Laravel', '5.2'],
+            'framework' => ['Laravel', '5.3'],
         ];
 
         $this->assertInstanceOf(Builder::class, $model->scopes($scopes));
 
         $this->assertSame($scopes, $model->scopesCalled);
+    }
+
+    public function testIsWithTheSameModelInstance()
+    {
+        $firstInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance = new EloquentModelStub(['id' => 1]);
+        $result = $firstInstance->is($secondInstance);
+        $this->assertTrue($result);
+    }
+
+    public function testIsWithAnotherModelInstance()
+    {
+        $firstInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance = new EloquentModelStub(['id' => 2]);
+        $result = $firstInstance->is($secondInstance);
+        $this->assertFalse($result);
+    }
+
+    public function testIsWithAnotherTable()
+    {
+        $firstInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance->setTable('foo');
+        $result = $firstInstance->is($secondInstance);
+        $this->assertFalse($result);
+    }
+
+    public function testIsWithAnotherConnection()
+    {
+        $firstInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance = new EloquentModelStub(['id' => 1]);
+        $secondInstance->setConnection('foo');
+        $result = $firstInstance->is($secondInstance);
+        $this->assertFalse($result);
     }
 
     protected function addMockConnection($model)
@@ -1437,6 +1530,21 @@ class EloquentModelStub extends Model
     public function morphToStub()
     {
         return $this->morphTo();
+    }
+
+    public function morphToStubWithKeys()
+    {
+        return $this->morphTo(null, 'type', 'id');
+    }
+
+    public function morphToStubWithName()
+    {
+        return $this->morphTo('someName');
+    }
+
+    public function morphToStubWithNameAndKeys()
+    {
+        return $this->morphTo('someName', 'type', 'id');
     }
 
     public function belongsToExplicitKeyStub()

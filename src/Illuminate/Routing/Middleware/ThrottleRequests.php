@@ -32,7 +32,7 @@ class ThrottleRequests
      * @param  \Illuminate\Http\Request  $request
      * @param  \Closure  $next
      * @param  int  $maxAttempts
-     * @param  int  $decayMinutes
+     * @param  float|int  $decayMinutes
      * @return mixed
      */
     public function handle($request, Closure $next, $maxAttempts = 60, $decayMinutes = 1)
@@ -69,7 +69,7 @@ class ThrottleRequests
      *
      * @param  string  $key
      * @param  int  $maxAttempts
-     * @return \Illuminate\Http\Response
+     * @return \Symfony\Component\HttpFoundation\Response
      */
     protected function buildResponse($key, $maxAttempts)
     {
@@ -91,7 +91,7 @@ class ThrottleRequests
      * @param  int  $maxAttempts
      * @param  int  $remainingAttempts
      * @param  int|null  $retryAfter
-     * @return \Illuminate\Http\Response
+     * @return \Symfony\Component\HttpFoundation\Response
      */
     protected function addHeaders(Response $response, $maxAttempts, $remainingAttempts, $retryAfter = null)
     {
@@ -102,6 +102,7 @@ class ThrottleRequests
 
         if (! is_null($retryAfter)) {
             $headers['Retry-After'] = $retryAfter;
+            $headers['X-RateLimit-Reset'] = time() + $retryAfter;
         }
 
         $response->headers->add($headers);

@@ -11,14 +11,13 @@ class QueueDatabaseQueueUnitTest extends PHPUnit_Framework_TestCase
 
     public function testPushProperlyPushesJobOntoDatabase()
     {
-        $queue = $this->getMock('Illuminate\Queue\DatabaseQueue', ['getTime'], [$database = m::mock('Illuminate\Database\Connection'), 'table', 'default']);
+        $queue = $this->getMockBuilder('Illuminate\Queue\DatabaseQueue')->setMethods(['getTime'])->setConstructorArgs([$database = m::mock('Illuminate\Database\Connection'), 'table', 'default'])->getMock();
         $queue->expects($this->any())->method('getTime')->will($this->returnValue('time'));
         $database->shouldReceive('table')->with('table')->andReturn($query = m::mock('StdClass'));
         $query->shouldReceive('insertGetId')->once()->andReturnUsing(function ($array) {
             $this->assertEquals('default', $array['queue']);
             $this->assertEquals(json_encode(['job' => 'foo', 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
-            $this->assertEquals(0, $array['reserved']);
             $this->assertNull($array['reserved_at']);
             $this->assertInternalType('int', $array['available_at']);
         });
@@ -28,18 +27,17 @@ class QueueDatabaseQueueUnitTest extends PHPUnit_Framework_TestCase
 
     public function testDelayedPushProperlyPushesJobOntoDatabase()
     {
-        $queue = $this->getMock(
-            'Illuminate\Queue\DatabaseQueue',
-            ['getTime'],
+        $queue = $this->getMockBuilder(
+            'Illuminate\Queue\DatabaseQueue')->setMethods(
+            ['getTime'])->setConstructorArgs(
             [$database = m::mock('Illuminate\Database\Connection'), 'table', 'default']
-        );
+        )->getMock();
         $queue->expects($this->any())->method('getTime')->will($this->returnValue('time'));
         $database->shouldReceive('table')->with('table')->andReturn($query = m::mock('StdClass'));
         $query->shouldReceive('insertGetId')->once()->andReturnUsing(function ($array) {
             $this->assertEquals('default', $array['queue']);
             $this->assertEquals(json_encode(['job' => 'foo', 'data' => ['data']]), $array['payload']);
             $this->assertEquals(0, $array['attempts']);
-            $this->assertEquals(0, $array['reserved']);
             $this->assertNull($array['reserved_at']);
             $this->assertInternalType('int', $array['available_at']);
         });
@@ -47,10 +45,55 @@ class QueueDatabaseQueueUnitTest extends PHPUnit_Framework_TestCase
         $queue->later(10, 'foo', ['data']);
     }
 
+    public function testFailureToCreatePayloadFromObject()
+    {
+        $this->expectException('InvalidArgumentException');
+
+        $job = new stdClass();
+        $job->invalid = "\xc3\x28";
+
+        $queue = $this->getMockForAbstractClass('Illuminate\Queue\Queue');
+        $class = new ReflectionClass('Illuminate\Queue\Queue');
+
+        $createPayload = $class->getMethod('createPayload');
+        $createPayload->setAccessible(true);
+        $createPayload->invokeArgs($queue, [
+            $job,
+        ]);
+    }
+
+    public function testFailureToCreatePayloadFromArray()
+    {
+        $this->expectException('InvalidArgumentException');
+
+        $queue = $this->getMockForAbstractClass('Illuminate\Queue\Queue');
+        $class = new ReflectionClass('Illuminate\Queue\Queue');
+
+        $createPayload = $class->getMethod('createPayload');
+        $createPayload->setAccessible(true);
+        $createPayload->invokeArgs($queue, [
+            ["\xc3\x28"],
+        ]);
+    }
+
+    public function testFailureToCreatePayloadAfterAddingMeta()
+    {
+        $this->expectException('InvalidArgumentException');
+
+        $queue = $this->getMockForAbstractClass('Illuminate\Queue\Queue');
+        $class = new ReflectionClass('Illuminate\Queue\Queue');
+
+        $setMeta = $class->getMethod('setMeta');
+        $setMeta->setAccessible(true);
+        $setMeta->invokeArgs($queue, [
+            json_encode(['valid']), 'key', "\xc3\x28",
+        ]);
+    }
+
     public function testBulkBatchPushesOntoDatabase()
     {
         $database = m::mock('Illuminate\Database\Connection');
-        $queue = $this->getMock('Illuminate\Queue\DatabaseQueue', ['getTime', 'getAvailableAt'], [$database, 'table', 'default']);
+        $queue = $this->getMockBuilder('Illuminate\Queue\DatabaseQueue')->setMethods(['getTime', 'getAvailableAt'])->setConstructorArgs([$database, 'table', 'default'])->getMock();
         $queue->expects($this->any())->method('getTime')->will($this->returnValue('created'));
         $queue->expects($this->any())->method('getAvailableAt')->will($this->returnValue('available'));
         $database->shouldReceive('table')->with('table')->andReturn($query = m::mock('StdClass'));
@@ -59,7 +102,6 @@ class QueueDatabaseQueueUnitTest extends PHPUnit_Framework_TestCase
                 'queue' => 'queue',
                 'payload' => json_encode(['job' => 'foo', 'data' => ['data']]),
                 'attempts' => 0,
-                'reserved' => 0,
                 'reserved_at' => null,
                 'available_at' => 'available',
                 'created_at' => 'created',
@@ -67,7 +109,6 @@ class QueueDatabaseQueueUnitTest extends PHPUnit_Framework_TestCase
                 'queue' => 'queue',
                 'payload' => json_encode(['job' => 'bar', 'data' => ['data']]),
                 'attempts' => 0,
-                'reserved' => 0,
                 'reserved_at' => null,
                 'available_at' => 'available',
                 'created_at' => 'created',

@@ -30,7 +30,7 @@ class CacheFileStoreTest extends PHPUnit_Framework_TestCase
         $files = $this->mockFilesystem();
         $contents = '0000000000';
         $files->expects($this->once())->method('get')->will($this->returnValue($contents));
-        $store = $this->getMock('Illuminate\Cache\FileStore', ['forget'], [$files, __DIR__]);
+        $store = $this->getMockBuilder('Illuminate\Cache\FileStore')->setMethods(['forget'])->setConstructorArgs([$files, __DIR__])->getMock();
         $store->expects($this->once())->method('forget');
         $value = $store->get('foo');
         $this->assertNull($value);
@@ -48,7 +48,7 @@ class CacheFileStoreTest extends PHPUnit_Framework_TestCase
     public function testStoreItemProperlyStoresValues()
     {
         $files = $this->mockFilesystem();
-        $store = $this->getMock('Illuminate\Cache\FileStore', ['expiration'], [$files, __DIR__]);
+        $store = $this->getMockBuilder('Illuminate\Cache\FileStore')->setMethods(['expiration'])->setConstructorArgs([$files, __DIR__])->getMock();
         $store->expects($this->once())->method('expiration')->with($this->equalTo(10))->will($this->returnValue(1111111111));
         $contents = '1111111111'.serialize('Hello World');
         $hash = sha1('foo');
@@ -77,6 +77,20 @@ class CacheFileStoreTest extends PHPUnit_Framework_TestCase
         $store->increment('foo');
         $files->expects($this->once())->method('get')->will($this->returnValue($contents));
         $this->assertEquals('Hello World', $store->get('foo'));
+    }
+
+    public function testIncrementDoesNotExtendCacheLife()
+    {
+        $files = $this->mockFilesystem();
+        $expiration = time() + 59;
+        $initialValue = $expiration.serialize(1);
+        $valueAfterIncrement = $expiration.serialize(2);
+        $store = new FileStore($files, __DIR__);
+        $files->expects($this->once())->method('get')->will($this->returnValue($initialValue));
+        $hash = sha1('foo');
+        $cache_dir = substr($hash, 0, 2).'/'.substr($hash, 2, 2);
+        $files->expects($this->once())->method('put')->with($this->equalTo(__DIR__.'/'.$cache_dir.'/'.$hash), $this->equalTo($valueAfterIncrement));
+        $store->increment('foo');
     }
 
     public function testRemoveDeletesFileDoesntExist()
@@ -123,6 +137,6 @@ class CacheFileStoreTest extends PHPUnit_Framework_TestCase
 
     protected function mockFilesystem()
     {
-        return $this->getMock('Illuminate\Filesystem\Filesystem');
+        return $this->createMock('Illuminate\Filesystem\Filesystem');
     }
 }

@@ -44,6 +44,7 @@ class SupportStrTest extends PHPUnit_Framework_TestCase
         $this->assertFalse(Str::startsWith('jason', 'day'));
         $this->assertFalse(Str::startsWith('jason', ['day']));
         $this->assertFalse(Str::startsWith('jason', ''));
+        $this->assertFalse(Str::startsWith('7', ' 7'));
     }
 
     public function testEndsWith()
@@ -142,6 +143,14 @@ class SupportStrTest extends PHPUnit_Framework_TestCase
         $randomInteger = random_int(1, 100);
         $this->assertEquals($randomInteger, strlen(Str::random($randomInteger)));
         $this->assertInternalType('string', Str::random());
+    }
+
+    public function testReplaceArray()
+    {
+        $this->assertEquals('foo/bar/baz', Str::replaceArray('?', ['foo', 'bar', 'baz'], '?/?/?'));
+        $this->assertEquals('foo/bar/baz/?', Str::replaceArray('?', ['foo', 'bar', 'baz'], '?/?/?/?'));
+        $this->assertEquals('foo/bar', Str::replaceArray('?', ['foo', 'bar', 'baz'], '?/?'));
+        $this->assertEquals('?/?/?', Str::replaceArray('x', ['foo', 'bar', 'baz'], '?/?/?'));
     }
 
     public function testReplaceFirst()
