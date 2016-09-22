@@ -1099,14 +1099,14 @@ class BelongsToMany extends Relation
             if (!isset($current[ $hash ])) {
                 $this->attach($keys, $attributes, $touch);
 
-                $changes[ 'attached' ][] = ctype_xdigit((string)$hash) ? (int)$hash : $keys;
+                $changes[ 'attached' ][] = ctype_digit((string)$hash) ? (int)$hash : (string)$keys;
             }
 
             // Now we'll try to update an existing pivot record with the attributes that were
             // given to the method. If the model is actually updated we will add it to the
             // list of updated pivot records so we return them back out to the consumer.
             elseif (count($attributes) > 0 && $this->updateExistingPivot($keys, $attributes, $touch)) {
-                $changes[ 'updated' ][] = ctype_xdigit((string)$hash) ? (int)$hash : $keys;
+                $changes[ 'updated' ][] = ctype_digit((string)$hash) ? (int)$hash : (string)$keys;
             }
         }
 
