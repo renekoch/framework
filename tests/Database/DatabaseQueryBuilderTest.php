@@ -135,6 +135,27 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('select * from "users" where "email" = ?', $builder->toSql());
     }
 
+    public function testWhenCallbackWithDefault()
+    {
+        $callback = function ($query) {
+            return $query->where('id', '=', 1);
+        };
+
+        $default = function ($query) {
+            return $query->where('id', '=', 2);
+        };
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->when(true, $callback, $default)->where('email', 'foo');
+        $this->assertEquals('select * from "users" where "id" = ? and "email" = ?', $builder->toSql());
+        $this->assertEquals([0 => 1, 1 => 'foo'], $builder->getBindings());
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->when(false, $callback, $default)->where('email', 'foo');
+        $this->assertEquals('select * from "users" where "id" = ? and "email" = ?', $builder->toSql());
+        $this->assertEquals([0 => 2, 1 => 'foo'], $builder->getBindings());
+    }
+
     public function testBasicWheres()
     {
         $builder = $this->getBuilder();
@@ -342,6 +363,18 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         $builder->select('*')->from('users')->where('id', '=', 1)->orWhereNotIn('id', [1, 2, 3]);
         $this->assertEquals('select * from "users" where "id" = ? or "id" not in (?, ?, ?)', $builder->toSql());
         $this->assertEquals([0 => 1, 1 => 1, 2 => 2, 3 => 3], $builder->getBindings());
+    }
+
+    public function testRawWhereIns()
+    {
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->whereIn('id', [new Raw(1)]);
+        $this->assertEquals('select * from "users" where "id" in (1)', $builder->toSql());
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->where('id', '=', 1)->orWhereIn('id', [new Raw(1)]);
+        $this->assertEquals('select * from "users" where "id" = ? or "id" in (1)', $builder->toSql());
+        $this->assertEquals([0 => 1], $builder->getBindings());
     }
 
     public function testEmptyWhereIns()
@@ -1245,7 +1278,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         $builder->shouldReceive('exists')->once()->andReturn(false);
         $builder->shouldReceive('insert')->once()->with(['email' => 'foo', 'name' => 'bar'])->andReturn(true);
 
-        $this->assertEquals(true, $builder->updateOrInsert(['email' => 'foo'], ['name' => 'bar']));
+        $this->assertTrue($builder->updateOrInsert(['email' => 'foo'], ['name' => 'bar']));
 
         $builder = m::mock('Illuminate\Database\Query\Builder[where,exists,update]', [
             m::mock('Illuminate\Database\ConnectionInterface'),
@@ -1253,12 +1286,12 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
             m::mock('Illuminate\Database\Query\Processors\Processor'),
         ]);
 
-        $builder->shouldReceive('where')->twice()->with(['email' => 'foo'])->andReturn(m::self());
+        $builder->shouldReceive('where')->once()->with(['email' => 'foo'])->andReturn(m::self());
         $builder->shouldReceive('exists')->once()->andReturn(true);
         $builder->shouldReceive('take')->andReturnSelf();
         $builder->shouldReceive('update')->once()->with(['name' => 'bar'])->andReturn(1);
 
-        $this->assertEquals(true, $builder->updateOrInsert(['email' => 'foo'], ['name' => 'bar']));
+        $this->assertTrue($builder->updateOrInsert(['email' => 'foo'], ['name' => 'bar']));
     }
 
     public function testDeleteMethod()
@@ -1710,6 +1743,19 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
 
         $builder->chunkById(2, function ($results) {
         }, 'someIdField');
+    }
+
+    public function testChunkPaginatesUsingIdWithAlias()
+    {
+        $builder = $this->getMockQueryBuilder();
+        $builder->shouldReceive('forPageAfterId')->once()->with(2, 0, 'table.id')->andReturn($builder);
+        $builder->shouldReceive('forPageAfterId')->once()->with(2, 10, 'table.id')->andReturn($builder);
+        $builder->shouldReceive('get')->times(2)->andReturn(
+            collect([(object) ['table_id' => 1], (object) ['table_id' => 10]]),
+            collect([])
+        );
+        $builder->chunkById(2, function ($results) {
+        }, 'table.id', 'table_id');
     }
 
     public function testPaginate()

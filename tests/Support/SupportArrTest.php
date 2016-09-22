@@ -157,6 +157,9 @@ class SupportArrTest extends PHPUnit_Framework_TestCase
 
     public function testGet()
     {
+        $array = ['products.desk' => ['price' => 100]];
+        $this->assertEquals(['price' => 100], Arr::get($array, 'products.desk'));
+
         $array = ['products' => ['desk' => ['price' => 100]]];
         $value = Arr::get($array, 'products.desk');
         $this->assertEquals(['price' => 100], $value);
@@ -221,6 +224,9 @@ class SupportArrTest extends PHPUnit_Framework_TestCase
 
     public function testHas()
     {
+        $array = ['products.desk' => ['price' => 100]];
+        $this->assertTrue(Arr::has($array, 'products.desk'));
+
         $array = ['products' => ['desk' => ['price' => 100]]];
         $this->assertTrue(Arr::has($array, 'products.desk'));
         $this->assertTrue(Arr::has($array, 'products.desk.price'));
@@ -252,6 +258,17 @@ class SupportArrTest extends PHPUnit_Framework_TestCase
 
         $this->assertFalse(Arr::has(null, null));
         $this->assertFalse(Arr::has([], null));
+
+        $array = ['products' => ['desk' => ['price' => 100]]];
+        $this->assertTrue(Arr::has($array, ['products.desk']));
+        $this->assertTrue(Arr::has($array, ['products.desk', 'products.desk.price']));
+        $this->assertTrue(Arr::has($array, ['products', 'products']));
+        $this->assertFalse(Arr::has($array, ['foo']));
+        $this->assertFalse(Arr::has($array, []));
+        $this->assertFalse(Arr::has($array, ['products.desk', 'products.price']));
+
+        $this->assertFalse(Arr::has([], [null]));
+        $this->assertFalse(Arr::has(null, [null]));
     }
 
     public function testIsAssoc()
@@ -341,20 +358,25 @@ class SupportArrTest extends PHPUnit_Framework_TestCase
 
     public function testSort()
     {
-        $array = [
+        $unsorted = [
             ['name' => 'Desk'],
             ['name' => 'Chair'],
         ];
-
-        $array = array_values(Arr::sort($array, function ($value) {
-            return $value['name'];
-        }));
 
         $expected = [
             ['name' => 'Chair'],
             ['name' => 'Desk'],
         ];
-        $this->assertEquals($expected, $array);
+
+        // sort with closure
+        $sortedWithClosure = array_values(Arr::sort($unsorted, function ($value) {
+            return $value['name'];
+        }));
+        $this->assertEquals($expected, $sortedWithClosure);
+
+        // sort with dot notation
+        $sortedWithDotNotation = array_values(Arr::sort($unsorted, 'name'));
+        $this->assertEquals($expected, $sortedWithDotNotation);
     }
 
     public function testSortRecursive()

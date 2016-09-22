@@ -4,8 +4,8 @@ namespace Illuminate\Queue;
 
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Redis\Database;
 use Illuminate\Queue\Jobs\RedisJob;
+use Illuminate\Contracts\Redis\Database;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
 
 class RedisQueue extends Queue implements QueueContract
@@ -13,7 +13,7 @@ class RedisQueue extends Queue implements QueueContract
     /**
      * The Redis database instance.
      *
-     * @var \Illuminate\Redis\Database
+     * @var \Illuminate\Contracts\Redis\Database
      */
     protected $redis;
 
@@ -41,7 +41,7 @@ class RedisQueue extends Queue implements QueueContract
     /**
      * Create a new Redis queue instance.
      *
-     * @param  \Illuminate\Redis\Database  $redis
+     * @param  \Illuminate\Contracts\Redis\Database  $redis
      * @param  string  $default
      * @param  string  $connection
      * @param  int  $expire
@@ -54,6 +54,19 @@ class RedisQueue extends Queue implements QueueContract
         $this->expire = $expire;
         $this->default = $default;
         $this->connection = $connection;
+    }
+
+    /**
+     * Get the size of the queue.
+     *
+     * @param  string  $queue
+     * @return int
+     */
+    public function size($queue = null)
+    {
+        $queue = $this->getQueue($queue);
+
+        return $this->getConnection()->eval(LuaScripts::size(), 3, $queue, $queue.':delayed', $queue.':reserved');
     }
 
     /**
@@ -123,7 +136,7 @@ class RedisQueue extends Queue implements QueueContract
         }
 
         list($job, $reserved) = $this->getConnection()->eval(
-            LuaScripts::pop(), 3, $queue, $queue.':reserved', $this->getTime() + $this->expire
+            LuaScripts::pop(), 2, $queue, $queue.':reserved', $this->getTime() + $this->expire
         );
 
         if ($reserved) {
@@ -156,7 +169,7 @@ class RedisQueue extends Queue implements QueueContract
         $queue = $this->getQueue($queue);
 
         $this->getConnection()->eval(
-            LuaScripts::release(), 4, $queue.':delayed', $queue.':reserved',
+            LuaScripts::release(), 2, $queue.':delayed', $queue.':reserved',
             $job, $this->getTime() + $delay
         );
     }
@@ -171,7 +184,7 @@ class RedisQueue extends Queue implements QueueContract
     public function migrateExpiredJobs($from, $to)
     {
         $this->getConnection()->eval(
-            LuaScripts::migrateExpiredJobs(), 3, $from, $to, $this->getTime()
+            LuaScripts::migrateExpiredJobs(), 2, $from, $to, $this->getTime()
         );
     }
 
@@ -226,7 +239,7 @@ class RedisQueue extends Queue implements QueueContract
     /**
      * Get the underlying Redis instance.
      *
-     * @return \Illuminate\Redis\Database
+     * @return \Illuminate\Contracts\Redis\Database
      */
     public function getRedis()
     {

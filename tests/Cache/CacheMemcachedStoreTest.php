@@ -45,14 +45,24 @@ class CacheMemcachedStoreTest extends PHPUnit_Framework_TestCase
 
     public function testSetMethodProperlyCallsMemcache()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
+        Carbon\Carbon::setTestNow($now = Carbon\Carbon::now());
         $memcache = $this->getMockBuilder('Memcached')->setMethods(['set'])->getMock();
-        $memcache->expects($this->once())->method('set')->with($this->equalTo('foo'), $this->equalTo('bar'), $this->equalTo(60));
+        $memcache->expects($this->once())->method('set')->with($this->equalTo('foo'), $this->equalTo('bar'), $this->equalTo($now->timestamp + 60));
         $store = new Illuminate\Cache\MemcachedStore($memcache);
         $store->put('foo', 'bar', 1);
+        Carbon\Carbon::setTestNow();
     }
 
     public function testIncrementMethodProperlyCallsMemcache()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
         $memcache = $this->getMockBuilder('Memcached')->setMethods(['increment'])->getMock();
         $memcache->expects($this->once())->method('increment')->with($this->equalTo('foo'), $this->equalTo(5));
         $store = new Illuminate\Cache\MemcachedStore($memcache);
@@ -61,6 +71,10 @@ class CacheMemcachedStoreTest extends PHPUnit_Framework_TestCase
 
     public function testDecrementMethodProperlyCallsMemcache()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
         $memcache = $this->getMockBuilder('Memcached')->setMethods(['decrement'])->getMock();
         $memcache->expects($this->once())->method('decrement')->with($this->equalTo('foo'), $this->equalTo(5));
         $store = new Illuminate\Cache\MemcachedStore($memcache);
@@ -69,6 +83,10 @@ class CacheMemcachedStoreTest extends PHPUnit_Framework_TestCase
 
     public function testStoreItemForeverProperlyCallsMemcached()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
         $memcache = $this->getMockBuilder('Memcached')->setMethods(['set'])->getMock();
         $memcache->expects($this->once())->method('set')->with($this->equalTo('foo'), $this->equalTo('bar'), $this->equalTo(0));
         $store = new Illuminate\Cache\MemcachedStore($memcache);
@@ -77,6 +95,10 @@ class CacheMemcachedStoreTest extends PHPUnit_Framework_TestCase
 
     public function testForgetMethodProperlyCallsMemcache()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
         $memcache = $this->getMockBuilder('Memcached')->setMethods(['delete'])->getMock();
         $memcache->expects($this->once())->method('delete')->with($this->equalTo('foo'));
         $store = new Illuminate\Cache\MemcachedStore($memcache);
@@ -85,6 +107,10 @@ class CacheMemcachedStoreTest extends PHPUnit_Framework_TestCase
 
     public function testGetAndSetPrefix()
     {
+        if (! class_exists('Memcached')) {
+            $this->markTestSkipped('Memcached module not installed');
+        }
+
         $store = new Illuminate\Cache\MemcachedStore(new Memcached(), 'bar');
         $this->assertEquals('bar:', $store->getPrefix());
         $store->setPrefix('foo');

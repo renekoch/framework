@@ -12,11 +12,11 @@ use Illuminate\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Traits\Macroable;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Psr\Http\Message\ResponseInterface as PsrResponseInterface;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
 use Illuminate\Contracts\Routing\Registrar as RegistrarContract;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class Router implements RegistrarContract
 {
@@ -656,7 +656,7 @@ class Router implements RegistrarContract
             return (array) $this->resolveMiddlewareClassName($name);
         })->flatten();
 
-        return $this->sortMiddleware($middleware)->all();
+        return $this->sortMiddleware($middleware);
     }
 
     /**
@@ -669,16 +669,20 @@ class Router implements RegistrarContract
     {
         $map = $this->middleware;
 
-        // If the middleware is the name of a middleware group, we will return the array
-        // of middlewares that belong to the group. This allows developers to group a
-        // set of middleware under single keys that can be conveniently referenced.
-        if (isset($this->middlewareGroups[$name])) {
-            return $this->parseMiddlewareGroup($name);
         // When the middleware is simply a Closure, we will return this Closure instance
         // directly so that Closures can be registered as middleware inline, which is
         // convenient on occasions when the developers are experimenting with them.
+        if ($name instanceof Closure) {
+            return $name;
         } elseif (isset($map[$name]) && $map[$name] instanceof Closure) {
             return $map[$name];
+
+        // If the middleware is the name of a middleware group, we will return the array
+        // of middlewares that belong to the group. This allows developers to group a
+        // set of middleware under single keys that can be conveniently referenced.
+        } elseif (isset($this->middlewareGroups[$name])) {
+            return $this->parseMiddlewareGroup($name);
+
         // Finally, when the middleware is simply a string mapped to a class name the
         // middleware name will get parsed into the full class name and parameters
         // which may be run using the Pipeline which accepts this string format.
@@ -733,25 +737,29 @@ class Router implements RegistrarContract
      * Sort the given middleware by priority.
      *
      * @param  \Illuminate\Support\Collection  $middlewares
-     * @return \Illuminate\Support\Collection
+     * @return array
      */
     protected function sortMiddleware(Collection $middlewares)
     {
-        $priority = collect($this->middlewarePriority);
+        $priority = $this->middlewarePriority;
 
-        $sorted = collect();
+        $sorted = [];
 
         foreach ($middlewares as $middleware) {
-            if ($sorted->contains($middleware)) {
+            if (in_array($middleware, $sorted)) {
                 continue;
             }
 
-            if (($index = $priority->search($middleware)) !== false) {
-                $sorted = $sorted->merge(
-                    $priority->take($index)->filter(function ($middleware) use ($middlewares, $sorted) {
-                        return $middlewares->contains($middleware) &&
-                             ! $sorted->contains($middleware);
-                    })
+            if (($index = array_search($middleware, $priority)) !== false) {
+                $sorted = array_merge(
+                    $sorted,
+                    array_filter(
+                        array_slice($priority, 0, $index),
+                        function ($middleware) use ($middlewares, $sorted) {
+                            return $middlewares->contains($middleware) &&
+                                 ! in_array($middleware, $sorted);
+                        }
+                    )
                 );
             }
 
@@ -927,7 +935,7 @@ class Router implements RegistrarContract
      * @param  \Closure|null  $callback
      * @return void
      *
-     * @throws \Symfony\Component\HttpKernel\Exception\NotFoundHttpException
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function model($key, $class, Closure $callback = null)
     {
@@ -952,7 +960,7 @@ class Router implements RegistrarContract
                 return call_user_func($callback, $value);
             }
 
-            throw new NotFoundHttpException;
+            throw (new ModelNotFoundException)->setModel($class);
         });
     }
 
@@ -1111,9 +1119,8 @@ class Router implements RegistrarContract
     }
 
     /**
-     * Alias for the "currentRouteName" method.
+     * Alias for the "currentRouteNamed" method.
      *
-     * @param  mixed  string
      * @return bool
      */
     public function is()
@@ -1157,7 +1164,6 @@ class Router implements RegistrarContract
     /**
      * Alias for the "currentRouteUses" method.
      *
-     * @param  mixed  string
      * @return bool
      */
     public function uses()

@@ -5,6 +5,7 @@ namespace Illuminate\Broadcasting\Broadcasters;
 use Pusher;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PusherBroadcaster extends Broadcaster
 {
@@ -27,25 +28,63 @@ class PusherBroadcaster extends Broadcaster
     }
 
     /**
-     * Return the valid Pusher authentication response.
+     * Authenticate the incoming request for a given channel.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return mixed
+     */
+    public function auth($request)
+    {
+        if (Str::startsWith($request->channel_name, ['private-', 'presence-']) &&
+            ! $request->user()
+        ) {
+            throw new HttpException(403);
+        }
+
+        return parent::verifyUserCanAccessChannel(
+            $request, str_replace(['private-', 'presence-'], '', $request->channel_name)
+        );
+    }
+
+    /**
+     * Return the valid authentication response.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  mixed  $result
      * @return mixed
      */
-    protected function validAuthenticationResponse($request, $result)
+    public function validAuthenticationResponse($request, $result)
     {
         if (Str::startsWith($request->channel_name, 'private')) {
-            return $this->pusher->socket_auth($request->channel_name, $request->socket_id);
+            return $this->decodePusherResponse(
+                $this->pusher->socket_auth($request->channel_name, $request->socket_id)
+            );
         } else {
-            return $this->pusher->presence_auth(
-                $request->channel_name, $request->socket_id, $request->user()->id, $result
+            return $this->decodePusherResponse(
+                $this->pusher->presence_auth(
+                    $request->channel_name, $request->socket_id, $request->user()->id, $result)
             );
         }
     }
 
     /**
-     * {@inheritdoc}
+     * Decode the given Pusher response.
+     *
+     * @param  mixed  $response
+     * @return array
+     */
+    protected function decodePusherResponse($response)
+    {
+        return json_decode($response, true);
+    }
+
+    /**
+     * Broadcast the given event.
+     *
+     * @param  array  $channels
+     * @param  string  $event
+     * @param  array  $payload
+     * @return void
      */
     public function broadcast(array $channels, $event, array $payload = [])
     {

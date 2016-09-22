@@ -124,7 +124,7 @@ abstract class AbstractPaginator implements Htmlable
     }
 
     /**
-     * Get a URL for a given page number.
+     * Get the URL for a given page number.
      *
      * @param  int  $page
      * @return string
@@ -563,7 +563,7 @@ abstract class AbstractPaginator implements Htmlable
      */
     public function __call($method, $parameters)
     {
-        return call_user_func_array([$this->getCollection(), $method], $parameters);
+        return $this->getCollection()->$method(...$parameters);
     }
 
     /**

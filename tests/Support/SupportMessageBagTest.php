@@ -55,6 +55,15 @@ class SupportMessageBagTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(['bar', 'baz'], $container->get('foo'));
     }
 
+    public function testGetReturnsArrayOfMessagesByImplicitKey()
+    {
+        $container = new MessageBag;
+        $container->setFormat(':message');
+        $container->add('foo.1', 'bar');
+        $container->add('foo.2', 'baz');
+        $this->assertEquals(['foo.1' => ['bar'], 'foo.2' => ['baz']], $container->get('foo.*'));
+    }
+
     public function testFirstReturnsSingleMessage()
     {
         $container = new MessageBag;
@@ -178,5 +187,14 @@ class SupportMessageBagTest extends PHPUnit_Framework_TestCase
     {
         $messageBag = new MessageBag(['country' => 'Azerbaijan', 'capital' => 'Baku']);
         $this->assertEquals(['country' => ['Azerbaijan'], 'capital' => ['Baku']], $messageBag->getMessages());
+    }
+
+    public function testFirstFindsMessageForWildcardKey()
+    {
+        $container = new MessageBag;
+        $container->setFormat(':message');
+        $container->add('foo.bar', 'baz');
+        $messages = $container->getMessages();
+        $this->assertEquals('baz', $container->first('foo.*'));
     }
 }
