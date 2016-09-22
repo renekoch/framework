@@ -90,8 +90,17 @@ class Worker
      */
     protected function daemonShouldRun()
     {
-        return $this->manager->isDownForMaintenance()
-            ? false : $this->events->until('illuminate.queue.looping') !== false;
+        if ($this->manager->isDownForMaintenance() ||
+            $this->events->until('illuminate.queue.looping') === false) {
+            // If the application is down for maintenance or doesn't want the queues to run
+            // we will sleep for one second just in case the developer has it set to not
+            // sleep at all. This just prevents CPU from maxing out in this situation.
+            $this->sleep(1);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
