@@ -4,6 +4,7 @@ namespace Illuminate\Database\Eloquent;
 
 trait SoftDeletes
 {
+
     /**
      * Indicates if the model is currently force deleting.
      *
@@ -45,7 +46,16 @@ trait SoftDeletes
     protected function performDeleteOnModel()
     {
         if ($this->forceDeleting) {
-            return $this->newQueryWithoutScopes()->where($this->getKeyName(), $this->getKey())->forceDelete();
+            /**
+             * @var \Illuminate\Database\Eloquent\Builder $query
+             */
+            $query = $this->newQueryWithoutScopes();
+
+            foreach ($this->getKeys() as $key => $val){
+                $query->where($key, $val);
+            }
+
+            return $query->forceDelete();
         }
 
         return $this->runSoftDelete();
@@ -54,15 +64,24 @@ trait SoftDeletes
     /**
      * Perform the actual delete query on this model instance.
      *
-     * @return void
+     * @return mixed
      */
     protected function runSoftDelete()
     {
-        $query = $this->newQueryWithoutScopes()->where($this->getKeyName(), $this->getKey());
+        /**
+         * @var \Illuminate\Database\Eloquent\Builder $query
+         */
+        $query = $this->newQueryWithoutScopes();
 
-        $this->{$this->getDeletedAtColumn()} = $time = $this->freshTimestamp();
+        foreach ($this->getKeys() as $key => $val){
+            $query->where($key, $val);
+        }
 
-        $query->update([$this->getDeletedAtColumn() => $this->fromDateTime($time)]);
+        $deleted_at = $this->getDeletedAtColumn();
+
+        $this->{$deleted_at} = $time = $this->freshTimestamp();
+
+        return $query->update([$deleted_at => $this->fromDateTime($time)]);
     }
 
     /**

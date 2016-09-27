@@ -15,12 +15,12 @@ class SoftDeletingScope implements Scope
      * Apply the scope to a given Eloquent query builder.
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $builder
-     * @param  \Illuminate\Database\Eloquent\Model  $model
+     * @param  \Illuminate\Database\Eloquent\Model|\Illuminate\Database\Eloquent\SoftDeletes  $model
      * @return void
      */
     public function apply(Builder $builder, Model $model)
     {
-        $builder->whereNull($model->getQualifiedDeletedAtColumn());
+        $builder->getQuery()->whereNull($model->getQualifiedDeletedAtColumn());
     }
 
     /**
@@ -37,10 +37,9 @@ class SoftDeletingScope implements Scope
 
         $builder->onDelete(function (Builder $builder) {
             $column = $this->getDeletedAtColumn($builder);
+            $now    = $builder->getModel()->freshTimestampString();
 
-            return $builder->update([
-                $column => $builder->getModel()->freshTimestampString(),
-            ]);
+            return $builder->update([$column => $now]);
         });
     }
 
@@ -52,10 +51,16 @@ class SoftDeletingScope implements Scope
      */
     protected function getDeletedAtColumn(Builder $builder)
     {
+        /**
+         * @var Model|SoftDeletes $model
+         */
+        $model = $builder->getModel();
+
         if (count($builder->getQuery()->joins) > 0) {
-            return $builder->getModel()->getQualifiedDeletedAtColumn();
-        } else {
-            return $builder->getModel()->getDeletedAtColumn();
+            return $model->getQualifiedDeletedAtColumn();
+        }
+        else {
+            return $model->getDeletedAtColumn();
         }
     }
 
@@ -81,9 +86,13 @@ class SoftDeletingScope implements Scope
     protected function addRestore(Builder $builder)
     {
         $builder->macro('restore', function (Builder $builder) {
-            $builder->withTrashed();
 
-            return $builder->update([$builder->getModel()->getDeletedAtColumn() => null]);
+            /**
+             * @var Model|SoftDeletes $model
+             */
+            $model = $builder->getModel();
+
+            return $builder->withoutGlobalScope($this)->update([$model->getDeletedAtColumn() => null]);
         });
     }
 
@@ -109,9 +118,12 @@ class SoftDeletingScope implements Scope
     protected function addWithoutTrashed(Builder $builder)
     {
         $builder->macro('withoutTrashed', function (Builder $builder) {
+            /**
+             * @var Model|SoftDeletes $model
+             */
             $model = $builder->getModel();
 
-            $builder->withoutGlobalScope($this)->whereNull(
+            $builder->withoutGlobalScope($this)->getQuery()->whereNull(
                 $model->getQualifiedDeletedAtColumn()
             );
 
@@ -128,9 +140,12 @@ class SoftDeletingScope implements Scope
     protected function addOnlyTrashed(Builder $builder)
     {
         $builder->macro('onlyTrashed', function (Builder $builder) {
+            /**
+             * @var Model|SoftDeletes $model
+             */
             $model = $builder->getModel();
 
-            $builder->withoutGlobalScope($this)->whereNotNull(
+            $builder->withoutGlobalScope($this)->getQuery()->whereNotNull(
                 $model->getQualifiedDeletedAtColumn()
             );
 
