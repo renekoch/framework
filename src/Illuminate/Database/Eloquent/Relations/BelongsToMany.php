@@ -646,7 +646,7 @@ class BelongsToMany extends Relation
      */
     public function getRelatedIds()
     {
-        $keys = $this->getRelated()->getQualifiedKeyName(true);
+        $keys = $this->getRelated()->getQualifiedKeyNames();
         $list = $this->getQuery()->getQuery()->select($keys)->get();
 
         return new BaseCollection($list);
@@ -733,7 +733,7 @@ class BelongsToMany extends Relation
      */
     protected function findQuery($ids)
     {
-        $keys  = $this->getRelated()->getQualifiedKeyName(true);
+        $keys  = $this->getRelated()->getQualifiedKeyNames();
         $first = reset($ids);
         if (count($keys) == 1 && !is_array($first)) {
             $this->query->getQuery()->whereIn(reset($keys), $ids);

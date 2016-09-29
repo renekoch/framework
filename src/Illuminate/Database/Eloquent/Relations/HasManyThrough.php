@@ -8,6 +8,7 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use \Illuminate\Database\Query\JoinClause;
 
 class HasManyThrough extends Relation
 {
@@ -28,7 +29,7 @@ class HasManyThrough extends Relation
     /**
      * The far key on the relationship.
      *
-     * @var string
+     * @var string[]
      */
     protected $secondKey;
 
@@ -116,10 +117,20 @@ class HasManyThrough extends Relation
          */
         $query = $query ?: $this->query;
 
-        $foreignKey = $this->related->getTable().'.'.$this->secondKey;
+        $relatedKeys  = $this->secondKey;
+        $relatedTable = $this->related->getTable();
 
-        
-        $query->join($this->parent->getTable(), $this->getQualifiedParentKeyName(), '=', $foreignKey);
+        $parentKeys  = $this->getQualifiedParentKeyNames();
+        $parentTable = $this->parent->getTable();
+
+        $fn = function (JoinClause $join) use ($parentKeys, $relatedTable, $relatedKeys) {
+            foreach ($parentKeys as $id => $parentKey) {
+                $join->on($parentKey, '=', $relatedTable.'.'.$relatedKeys[ $id ]);
+            }
+        };
+
+        $query->join($parentTable, $fn);
+
 
         if ($this->parentSoftDeletes()) {
             /** @noinspection PhpUndefinedMethodInspection */
@@ -267,7 +278,7 @@ class HasManyThrough extends Relation
     public function find($id, $columns = ['*'])
     {
         // Check for composite keys
-        $keys = $this->getRelated()->getQualifiedKeyName(true);
+        $keys = $this->getRelated()->getQualifiedKeyNames();
 
         if (count($keys) > 1) {
 
@@ -307,7 +318,7 @@ class HasManyThrough extends Relation
             return $this->getRelated()->newCollection();
         }
 
-        $keys = $this->getRelated()->getQualifiedKeyName(true);
+        $keys = $this->getRelated()->getQualifiedKeyNames();
 
         $fn = function($id){
             //convert string to keyset
@@ -438,7 +449,7 @@ class HasManyThrough extends Relation
      */
     public function getHasCompareKeys()
     {
-        return $this->farParent->getQualifiedKeyName();
+        return $this->farParent->getQualifiedKeyNames();
     }
 
     /**

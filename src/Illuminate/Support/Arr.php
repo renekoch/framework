@@ -560,7 +560,10 @@ class Arr
      */
     public static function buildHashArray($list, $keys, $noNullValues = false)
     {
+        $keys = $keys instanceof Collection ? $keys->all() : (array) $keys;
+
         $result = [];
+
         //make it backward compatible with pre-composite keys
         if (count($keys) == 1) {
             foreach ($list as $item) {
@@ -597,7 +600,7 @@ class Arr
         if (!count($keys)) {
             return null;
         }
-        if (count($keys) == 1) {
+        if (1 == count($keys)) {
             return $hash;
         }
 

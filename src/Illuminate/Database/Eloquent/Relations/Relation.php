@@ -171,7 +171,7 @@ abstract class Relation
             $query->whereRaw("0");
         }
         else {
-            $parentKeyName = $this->getQualifiedParentKeyName();
+            $parentKeyName = $this->getQualifiedParentKeyNames();
             foreach ($compareKeys as $name => $compareKeyName) {
                 $query->where($compareKeyName, '=', new Expression($this->wrap($parentKeyName[ $name ])));
             }
@@ -256,12 +256,23 @@ abstract class Relation
     /**
      * Get the fully qualified parent key name.
      *
-     * @return string[]
+     * @return string
      */
     public function getQualifiedParentKeyName()
     {
-        return $this->parent->getQualifiedKeyName();
+        return head($this->parent->getQualifiedKeyNames());
     }
+
+    /**
+     * Get the fully qualified parent key name.
+     *
+     * @return string[]
+     */
+    public function getQualifiedParentKeyNames()
+    {
+        return $this->parent->getQualifiedKeyNames();
+    }
+
 
     /**
      * Get the related model of the relation.

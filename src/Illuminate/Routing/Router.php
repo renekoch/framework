@@ -827,7 +827,10 @@ class Router implements RegistrarContract
 
                 $method = $parameter->isDefaultValueAvailable() ? 'first' : 'firstOrFail';
 
-                $param = $model->newQuery()->where($model->getRouteKeyName(), $parameters[$parameter->name])->{$method}();
+                $keys = $model->getRouteKeyName();
+                $values = Arr::buildFromHash($parameters[$parameter->name], $keys);
+
+                $param = $model->newQuery()->whereList($keys, $values)->{$method}();
 
                 $route->setParameter($parameter->name,  $param);
             }

@@ -161,9 +161,9 @@ class Builder
     public function find($id, $columns = ['*'])
     {
         // Check for composite keys
-        $keys = $this->model->getQualifiedKeyName();
+        $keys = $this->model->getQualifiedKeyNames();
 
-        if (is_array($keys)) {
+        if (1 < count($keys)) {
             //convert string to keyset
             if (is_string($id)) {
                 $id = $this->model->fromHash($id);
@@ -180,7 +180,7 @@ class Builder
                 return $this->findMany($id, $columns);
             }
 
-            $this->query->where($keys, $id);
+            $this->query->where(head($keys), $id);
         }
 
         return $this->first($columns);
@@ -200,8 +200,8 @@ class Builder
         }
 
         // Check for composite keys
-        $keys = $this->model->getQualifiedKeyName(true);
-        if (count($keys) > 1){
+        $keys = $this->model->getQualifiedKeyNames();
+        if (1 < count($keys)){
             //convert string to keyset
             $fn = function($id){
                 return is_string($id) ? $this->model->fromHash($id) : $id;
@@ -450,7 +450,7 @@ class Builder
     public function each(callable $callback, $count = 1000)
     {
         if (is_null($this->query->orders) && is_null($this->query->unionOrders)) {
-            foreach($this->model->getQualifiedKeyName(true) as $field) {
+            foreach($this->model->getQualifiedKeyNames() as $field) {
                 $this->query->orderBy($field, 'asc');
             }
         }

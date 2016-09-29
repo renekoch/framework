@@ -1033,6 +1033,8 @@ class Builder
      */
     public function whereList($keys, $keyList, $boolean = 'and', $not = false)
     {
+        $keys = (array) $keys;
+
         if ($keyList instanceof Collection){
             $keyList = $keyList->all();
         }

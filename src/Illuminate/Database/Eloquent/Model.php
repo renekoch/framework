@@ -2158,7 +2158,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the table qualified key name.
      *
-     * @return string[]
+     * @return string|string[]
      */
     public function getQualifiedKeyName($forceArray = false)
     {
@@ -2179,6 +2179,14 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     }
 
     /**
+     * @return \string[]
+     */
+    public function getQualifiedKeyNames(){
+
+        return $this->getQualifiedKeyName(true);
+    }
+
+    /**
      * Get the value of the model's route key.
      *
      * @return mixed
@@ -2191,39 +2199,49 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the route key for the model.
      *
-     * @return string
+     * @return string|\string[]
      */
     public function getRouteKeyName()
     {
-        return implode('',$this->getKeyNames());
+        return $this->getUniqueKey();
     }
 
 
     /**
      * Make a hash key out of a list of $attributes or primary keys
      *
-     * @param string[]|null $keys
-     * @param boolean       $noNullValues
+     * @param string|string[]|null $keys
+     * @param boolean              $noNullValues
      *
      * @return array
      */
     public function getHashKey($keys = null, $noNullValues = false)
     {
         $keys = (array)($keys ?: $this->getKeyNames());
+
         return Arr::buildHash($this->getAttributes(), $keys, $noNullValues);
     }
 
     /**
-     * Make a hash key out of a list of $attributes or primary keys
-     *
-     * @param string[]|null $keys
+     * Get id the uniquely identifies this item
      *
      * @return mixed
      */
-    public function getUniqueId($keys = null)
+    public function getUniqueId()
     {
-        return $this->getHashKey($keys)[0];
+        return $this->getHashKey($this->getUniqueKey())[0];
     }
+
+    /**
+     * Get keyname the uniquely identifies this item
+     *
+     * @return string|\string[]
+     */
+    public function getUniqueKey()
+    {
+        return $this->getKeyName();
+    }
+
 
     /**
      * @param  string       $hash
