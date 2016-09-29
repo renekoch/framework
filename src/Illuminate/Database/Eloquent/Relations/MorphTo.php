@@ -196,7 +196,7 @@ class MorphTo extends BelongsTo
         $table =$instance->getTable().'.';
         $keys = [];
 
-        foreach($instance->getKeyName(true) as $foreignKey){
+        foreach($instance->getKeyNames() as $foreignKey){
             $keys[$foreignKey] =  $table.$foreignKey;
         }
 

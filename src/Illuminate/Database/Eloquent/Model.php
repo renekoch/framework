@@ -273,7 +273,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     public function __construct(array $attributes = [])
     {
         //composite keys cant be incrementing
-        if ($this->incrementing && count($this->getKeyName(true)) > 1) {
+        if ($this->incrementing && count($this->getKeyNames()) > 1) {
             $this->incrementing = false;
         }
 
@@ -664,7 +664,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
             $with = func_get_args();
         }
         $query = static::newQueryWithoutScopes()->with($with);
-        foreach ($this->getKey(true) as $key => $value) {
+        foreach ($this->getKeys() as $key => $value) {
             $query->where($key, $value);
         }
 
@@ -748,12 +748,12 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         if (is_string($foreignKey)) {
 
-            $foreignKey = [$foreignKey => $localKey?: head($this->getKeyName())];
+            $foreignKey = [$foreignKey => $localKey?: head($this->getKeyNames())];
         }
         elseif (is_null($foreignKey)) {
 
             $foreignKey = [];
-            foreach ($this->getKeyName() as $keyname) {
+            foreach ($this->getKeyNames() as $keyname) {
                 $foreignKey[ $base.$keyname ] = $keyname;
             }
         }
@@ -788,7 +788,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         //backwards compability for pre composite keys
         if(is_string($ids)){
-            $primaryKey = head($this->getKeyName(true));
+            $primaryKey = head($this->getKeyNames());
             $ids = [$ids => $localKeys?:$name .'_'.$primaryKey];
         }
 
@@ -835,7 +835,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)){
             //if no $otherKey try to guess the most likely key
             if (!$otherKey){
-                $otherKey = head($instance->getKeyName(true));
+                $otherKey = head($instance->getKeyNames());
             }
 
             $keys = [$foreignKey => $otherKey];
@@ -846,7 +846,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // when combined with $otherKey should conventionally match the columns.
         elseif (is_null($foreignKey)) {
             $keys = [];
-            $otherKey = (array)($otherKey ? : $instance->getKeyName(true));
+            $otherKey = (array)($otherKey ? : $instance->getKeyNames());
             foreach($otherKey as $keyname){
                 $keys[$base . $keyname] = $keyname;
             }
@@ -944,7 +944,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         if (is_string($foreignKey)) {
             //if no $localKey try to guess the most likely key
             if (!$localKey) {
-                $localKey = head($this->getKeyName(true));
+                $localKey = head($this->getKeyNames());
             }
 
             $foreignKey = [$foreignKey => $localKey];
@@ -953,7 +953,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         //if non keys provided use primary keys
         elseif (is_null($foreignKey)) {
             $foreignKey = [];
-            foreach ($this->getKeyName(true) as $keyname) {
+            foreach ($this->getKeyNames() as $keyname) {
                 $foreignKey[ $base.$keyname ] = $keyname;
             }
         }
@@ -988,7 +988,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         $secondKey = $secondKey ?: $through->getForeignKeys();
 
-        $localKey = $localKey ?: $this->getKeyName(true);
+        $localKey = $localKey ?: $this->getKeyNames();
 
         /**
          * @var Model $instance
@@ -1020,7 +1020,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         //backwards compability for pre composite keys
         if (is_string($ids)) {
-            $key = head($this->getKeyName(true));
+            $key = head($this->getKeyNames());
             $ids = [$ids => $localKeys ?: $name.'_'.$key];
         }
 
@@ -1060,7 +1060,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // relationship. Once we have determined the keys we'll make the query
         // instances as well as the relationship instances we need for this.
         if(is_string($foreignKey)){
-            $foreignKey = [head($this->getKeyName(true)) => $foreignKey];
+            $foreignKey = [head($this->getKeyNames()) => $foreignKey];
         }
         $foreignKey = $foreignKey?:$this->getForeignKeys();
 
@@ -1070,7 +1070,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         $instance = new $related;
 
         if(is_string($otherKey)){
-            $otherKey = [head($instance->getKeyName(true)) => $otherKey];
+            $otherKey = [head($instance->getKeyNames()) => $otherKey];
         }
         $otherKey = $otherKey ?: $instance->getForeignKeys();
 
@@ -1210,7 +1210,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         $count = 0;
         $instance = new static;
 
-        $keys = $instance->getKeyName(true);
+        $keys = $instance->getKeyNames();
 
         $ids = is_array($ids) && $keys != array_keys($ids) ? $ids : func_get_args();
         $fn = function($id) use ($instance){
@@ -1528,7 +1528,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         }
 
         $this->incrementOrDecrementAttributeValue($column, $amount, $method);
-        foreach($this->getKey(true) as $key => $val){
+        foreach($this->getKeys() as $key => $val){
             $query->where($key, $val);
         }
 
@@ -1763,7 +1763,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function insertAndSetId(Builder $query, $attributes)
     {
-        $keyName = head($this->getKeyName(true));
+        $keyName = head($this->getKeyNames());
         $id = $query->insertGetId($attributes, $keyName);
 
         $this->setAttribute($keyName, $id);
@@ -1847,7 +1847,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     protected function getKeyForSaveQuery()
     {
-        $keys   = $this->getKeyName(true);
+        $keys   = $this->getKeyNames();
         $result = [];
 
         foreach ($keys as $keyname) {
@@ -2125,7 +2125,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     /**
      * Get the primary key for the model.
      *
-     * @return string[]
+     * @return string|string[]
      */
     public function getKeyName($forceArray = false)
     {
@@ -2167,7 +2167,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
 
         if (is_array($keynames)){
             $list = [];
-            foreach($this->getKeyName(true) as $keyname){
+            foreach($this->getKeyNames() as $keyname){
                 $list[$keyname] = $table . $keyname;
             }
 
@@ -2209,7 +2209,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getHashKey($keys = null, $noNullValues = false)
     {
-        $keys = (array)($keys ?: $this->getKeyName(true));
+        $keys = (array)($keys ?: $this->getKeyNames());
         return Arr::buildHash($this->getAttributes(), $keys, $noNullValues);
     }
 
@@ -2233,7 +2233,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function fromHash($hash, $keys = null)
     {
-        $keys = (array)($keys ?: $this->getKeyName(true));
+        $keys = (array)($keys ?: $this->getKeyNames());
 
         return Arr::buildFromHash($hash, $keys);
     }
@@ -2261,11 +2261,11 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         $type = $type ?: $name.'_type';
         if (is_string($ids)) {
-            $ids = [head($this->getKeyName(true)) => $ids];
+            $ids = [head($this->getKeyNames()) => $ids];
         }
         elseif (!is_array($ids)) {
             $ids = [];
-            foreach ($this->getKeyName(true) as $key) {
+            foreach ($this->getKeyNames() as $key) {
                 $ids[ $name.'_'.$key ] = $key;
             }
         }
@@ -2327,7 +2327,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         $basename = Str::snake(class_basename($this)) . '_';
 
         $keys = [];
-        foreach($this->getKeyName(true) as $keyname){
+        foreach($this->getKeyNames() as $keyname){
             $keys[$keyname] = $basename . $keyname;
         }
 
@@ -3034,7 +3034,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     {
         if ($this->getIncrementing()) {
 
-            $keyname = head($this->getKeyName(true));
+            $keyname = head($this->getKeyNames());
 
             if (!isset($this->casts[$keyname])){
                 $this->casts[$keyname] = $this->keyType;
@@ -3317,7 +3317,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
             $this->getUpdatedAtColumn(),
         ];
 
-        $except = $except ? array_unique(array_merge($except, $this->getKeyName(true), $defaults)) : $defaults;
+        $except = $except ? array_unique(array_merge($except, $this->getKeyNames(), $defaults)) : $defaults;
 
         $attributes = Arr::except($this->attributes, $except);
 
@@ -3336,9 +3336,9 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function is(Model $model)
     {
-        return $this->getKey() === $model->getKey() &&
-               $this->getTable() === $model->getTable() &&
-               $this->getConnectionName() === $model->getConnectionName();
+        return $this->getTable() === $model->getTable() &&
+               $this->getConnectionName() === $model->getConnectionName() &&
+               $this->getKeys() === $model->getKeys();
     }
 
     /**

@@ -1163,7 +1163,7 @@ class BelongsToMany extends Relation
     {
 
         if ($keys instanceof Model) {
-            $keys = [$keys->getKey(true)];
+            $keys = [$keys->getKeys()];
         }
         elseif ($keys instanceof Collection) {
             $keys = $keys->modelKeys();
@@ -1337,7 +1337,7 @@ class BelongsToMany extends Relation
         }
 
         if ($ids instanceof Model) {
-            $ids = [$ids->getKey(true)];
+            $ids = [$ids->getKeys()];
         }
         elseif (is_array($ids)) {
             $lookupKeys = array_keys($this->otherKey);
