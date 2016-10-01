@@ -1540,7 +1540,7 @@ class Validator implements ValidatorContract
 
         $count = count($segments);
 
-        for ($i = 0; $i < $count; $i = $i + 2) {
+        for ($i = 0; $i < $count; $i += 2) {
             $extra[$segments[$i]] = $segments[$i + 1];
         }
 
@@ -2123,7 +2123,7 @@ class Validator implements ValidatorContract
         );
 
         foreach ($customMessages as $key => $message) {
-            if (Str::contains($key, ['*']) && Str::is($key, $shortKey)) {
+            if ($shortKey === $key || (Str::contains($key, ['*']) && Str::is($key, $shortKey))) {
                 return $message;
             }
         }
