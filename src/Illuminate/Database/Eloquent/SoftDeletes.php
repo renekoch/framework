@@ -147,6 +147,16 @@ trait SoftDeletes
     }
 
     /**
+     * Determine if the model is currently force deleting.
+     *
+     * @return bool
+     */
+    public function isForceDeleting()
+    {
+        return $this->forceDeleting;
+    }
+
+    /**
      * Get the name of the "deleted at" column.
      *
      * @return string
