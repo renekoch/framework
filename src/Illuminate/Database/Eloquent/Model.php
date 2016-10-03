@@ -1739,7 +1739,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
         // are. These attribute arrays must contain an "id" column previously placed
         // there by the developer as the manually determined key for these models.
         else {
-            $query->insert($attributes);
+            $query->getQuery()->insert($attributes);
         }
 
         // We will go ahead and set the exists property to true, so that it is set when
@@ -1764,7 +1764,7 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     protected function insertAndSetId(Builder $query, $attributes)
     {
         $keyName = head($this->getKeyNames());
-        $id = $query->insertGetId($attributes, $keyName);
+        $id = $query->getQuery()->insertGetId($attributes, $keyName);
 
         $this->setAttribute($keyName, $id);
     }
