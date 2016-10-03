@@ -1,5 +1,65 @@
 # Release Notes for 5.3.x
 
+## v5.3.15 (2016-09-29)
+
+### Changed
+- Use granular notification queue jobs ([#15681](https://github.com/laravel/framework/pull/15681), [3a5e510](https://github.com/laravel/framework/commit/3a5e510af5e92ab2eaa25d728b8c74d9cf8833c2))
+- Reverted recent changes to the queue ([d8dc8dc](https://github.com/laravel/framework/commit/d8dc8dc4bde56f63d8b1eacec3f3d4d68cc51894))
+
+
+## v5.3.14 (2016-09-29)
+
+### Fixed
+- Fixed `DaemonCommand` command name ([b681bff](https://github.com/laravel/framework/commit/b681bffc247ebac1fbb4afcec03e2ce12627e0cc))
+
+
+## v5.3.13 (2016-09-29)
+
+### Added
+- Added `serialize()` and `unserialize()` on `RedisStore` ([#15657](https://github.com/laravel/framework/pull/15657))
+
+### Changed
+- Use `$signature` command style on `DaemonCommand` and `WorkCommand` ([#15677](https://github.com/laravel/framework/pull/15677))
+
+
+## v5.3.12 (2016-09-29)
+
+### Added
+- Added support for priority level in mail notifications ([#15651](https://github.com/laravel/framework/pull/15651))
+- Added missing `$minutes` property on `CookieSessionHandler` ([#15664](https://github.com/laravel/framework/pull/15664))
+
+### Changed
+- Removed forking and pcntl requirements while still supporting timeouts ([#15650](https://github.com/laravel/framework/pull/15650))
+
+
+## v5.3.11 (2016-09-27)
+
+### Added
+- Added `Kernel::setArtisan()` method ([#15531](https://github.com/laravel/framework/pull/15531))
+- Added a default method for validation message variable replacing ([#15527](https://github.com/laravel/framework/pull/15527))
+- Added support for a schema array in Postgres config ([#15535](https://github.com/laravel/framework/pull/15535))
+- Added `SoftDeletes::isForceDeleting()` method ([#15580](https://github.com/laravel/framework/pull/15580))
+- Added support for tasks scheduling using command classes instead of signatures ([#15591](https://github.com/laravel/framework/pull/15591))
+- Added support for passing array of emails/user-objects to `Mailable::to()` ([#15603](https://github.com/laravel/framework/pull/15603))
+- Add missing interface methods in `Registrar` contract ([#15616](https://github.com/laravel/framework/pull/15616))
+
+### Changed
+- Let the queue worker sleep for 1s when app is down for maintenance ([#15520](https://github.com/laravel/framework/pull/15520))
+- Improved validator messages for implicit attributes errors ([#15538](https://github.com/laravel/framework/pull/15538))
+- Use `Carbon::now()->getTimestamp()` instead of `time()` in various places ([#15544](https://github.com/laravel/framework/pull/15544), [#15545](https://github.com/laravel/framework/pull/15545), [c5984af](https://github.com/laravel/framework/commit/c5984af3757e492c6e79cef161169ea09b5b9c7a), [#15549](https://github.com/laravel/framework/pull/15549))
+- Removed redundant condition from `updateOrInsert()` ([#15540](https://github.com/laravel/framework/pull/15540))
+- Throw `LogicException` on container alias loop ([#15548](https://github.com/laravel/framework/pull/15548))
+- Handle empty `$files` in `Request::duplicate()` ([#15558](https://github.com/laravel/framework/pull/15558))
+- Support exact matching of custom validation messages ([#15557](https://github.com/laravel/framework/pull/15557))
+
+### Fixed
+- Decode URL in `Request::segments()` and `Request::is()` ([#15524](https://github.com/laravel/framework/pull/15524))
+- Replace only the first instance of the app namespace in Generators ([#15575](https://github.com/laravel/framework/pull/15575))
+- Fixed artisan `--env` issue where environment file wasn't loaded ([#15629](https://github.com/laravel/framework/pull/15629))
+- Fixed migration with comments using `ANSI_QUOTE` SQL mode ([#15620](https://github.com/laravel/framework/pull/15620))
+- Disabled queue worker process forking until it works with AWS SQS ([23c1276](https://github.com/laravel/framework/commit/23c12765557ebc5e3c35ad024d645620f7b907d6))
+
+
 ## v5.3.10 (2016-09-20)
 
 ### Added

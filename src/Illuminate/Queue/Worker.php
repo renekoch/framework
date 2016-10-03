@@ -71,7 +71,7 @@ class Worker
 
         while (true) {
             if ($this->daemonShouldRun()) {
-                $this->runNextJobForDaemon($connectionName, $queue, $options);
+                $this->runNextJob($connectionName, $queue, $options);
             } else {
                 $this->sleep($options->sleep);
             }
@@ -101,51 +101,6 @@ class Worker
         }
 
         return true;
-    }
-
-    /**
-     * Run the next job for the daemon worker.
-     *
-     * @param  string  $connectionName
-     * @param  string  $queue
-     * @param  \Illuminate\Queue\WorkerOptions  $options
-     * @return void
-     */
-    protected function runNextJobForDaemon($connectionName, $queue, WorkerOptions $options)
-    {
-        if (! $options->timeout) {
-            $this->runNextJob($connectionName, $queue, $options);
-        } elseif ($processId = pcntl_fork()) {
-            $this->waitForChildProcess($processId, $options->timeout);
-        } else {
-            $this->runNextJob($connectionName, $queue, $options);
-
-            exit;
-        }
-    }
-
-    /**
-     * Wait for the given child process to finish.
-     *
-     * @param  int  $processId
-     * @param  int  $timeout
-     * @return void
-     */
-    protected function waitForChildProcess($processId, $timeout)
-    {
-        declare(ticks=1) {
-            pcntl_signal(SIGALRM, function () use ($processId, $timeout) {
-                posix_kill($processId, SIGKILL);
-
-                $this->exceptions->report(new TimeoutException("Queue child process timed out after {$timeout} seconds."));
-            }, true);
-
-            pcntl_alarm($timeout);
-
-            pcntl_waitpid($processId, $status);
-
-            pcntl_alarm(0);
-        }
     }
 
     /**
