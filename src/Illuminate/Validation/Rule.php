@@ -28,6 +28,28 @@ class Rule
     }
 
     /**
+     * Get an in constraint builder instance.
+     *
+     * @param  array  $values
+     * @return \Illuminate\Validation\Rules\In
+     */
+    public static function in(array $values)
+    {
+        return new Rules\In($values);
+    }
+
+    /**
+     * Get a not_in constraint builder instance.
+     *
+     * @param  array  $values
+     * @return \Illuminate\Validation\Rules\In
+     */
+    public static function notIn(array $values)
+    {
+        return new Rules\NotIn($values);
+    }
+
+    /**
      * Get a unique constraint builder instance.
      *
      * @param  string  $table

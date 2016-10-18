@@ -197,7 +197,8 @@ class Validator implements ValidatorContract
      * @param  array  $customAttributes
      * @return void
      */
-    public function __construct(TranslatorInterface $translator, array $data, array $rules, array $messages = [], array $customAttributes = [])
+    public function __construct(TranslatorInterface $translator, array $data, array $rules,
+                                array $messages = [], array $customAttributes = [])
     {
         $this->initialRules = $rules;
         $this->translator = $translator;
@@ -1654,7 +1655,11 @@ class Validator implements ValidatorContract
         }
 
         if ($url = parse_url($value, PHP_URL_HOST)) {
-            return count(dns_get_record($url, DNS_A | DNS_AAAA)) > 0;
+            try {
+                return count(dns_get_record($url, DNS_A | DNS_AAAA)) > 0;
+            } catch (Exception $e) {
+                return false;
+            }
         }
 
         return false;
