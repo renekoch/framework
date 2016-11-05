@@ -1,5 +1,40 @@
 # Release Notes for 5.3.x
 
+## [Unreleased]
+
+### Added
+- Added database slave failover ([#15553](https://github.com/laravel/framework/pull/15553), [ed28c7f](https://github.com/laravel/framework/commit/ed28c7fa11d3754d618606bf8fc2f00690cfff66))
+- Added `Arr::shuffle($array)` ([ed28c7f](https://github.com/laravel/framework/commit/ed28c7fa11d3754d618606bf8fc2f00690cfff66))
+
+### Changed
+- Dried-up console parser and extract token parsing ([#16197](https://github.com/laravel/framework/pull/16197))
+- Support empty array for query builder `orders` property ([#16225](https://github.com/laravel/framework/pull/16225))
+- Properly handle filling JSON attributes on Eloquent models ([#16228](https://github.com/laravel/framework/pull/16228))
+
+### Fixed
+- Catch errors when handling a failed job ([#16212](https://github.com/laravel/framework/pull/16212))
+- Return array from `Translator::sortReplacements()` ([#16221](https://github.com/laravel/framework/pull/16221))
+- Don't use multi-byte functions in `UrlGenerator::to()` ([#16081](https://github.com/laravel/framework/pull/16081))
+- Support configuration files as symbolic links ([#16080](https://github.com/laravel/framework/pull/16080))
+
+
+## v5.3.22 (2016-11-01)
+
+### Added
+- Added support for carbon-copy in mail notifications ([#16152](https://github.com/laravel/framework/pull/16152))
+- Added `-r` shortcut to `make:controller` command ([#16141](https://github.com/laravel/framework/pull/16141))
+- Added `HasDatabaseNotifications::readNotifications()` method ([#16164](https://github.com/laravel/framework/pull/16164))
+- Added `broadcastOn()` method to allow notifications to be broadcasted to custom channels ([#16170](https://github.com/laravel/framework/pull/16170))
+
+### Changed
+- Avoid extraneous database query when last `chunk()` is partial ([#16180](https://github.com/laravel/framework/pull/16180))
+- Return unique middleware stack from `Route::gatherMiddleware()` ([#16185](https://github.com/laravel/framework/pull/16185))
+- Return early when `Collection::chunk()` size zero or less ([#16206](https://github.com/laravel/framework/pull/16206), [46ebd7f](https://github.com/laravel/framework/commit/46ebd7fa1f35eeb37af891abfc611f7262c91c29))
+
+### Fixed
+- Bind `double` as `PDO::PARAM_INT` on MySQL connections ([#16069](https://github.com/laravel/framework/pull/16069))
+
+
 ## v5.3.21 (2016-10-26)
 
 ### Added
@@ -158,6 +193,7 @@
 
 ### Changed
 - Removed forking and pcntl requirements while still supporting timeouts ([#15650](https://github.com/laravel/framework/pull/15650))
+- Set exception handler first thing in `WorkCommand::runWorker()` ([99994fe](https://github.com/laravel/framework/commit/99994fe23c1215d5a8e798da03947e6a5502b8f9))
 
 
 ## v5.3.11 (2016-09-27)
@@ -205,6 +241,8 @@
 - Prevent calling `Model` methods when calling them as attributes ([#15438](https://github.com/laravel/framework/pull/15438))
 - Default `$callback` to `null` in eloquent builder `whereHas()` ([#15475](https://github.com/laravel/framework/pull/15475))
 - Support newlines in Blade's `@foreach` ([#15485](https://github.com/laravel/framework/pull/15485))
+- Try to reconnect if connection is lost during database transaction ([#15511](https://github.com/laravel/framework/pull/15511))
+- Renamed `InteractsWithQueue::failed()` to `fail()` ([e1d60e0](https://github.com/laravel/framework/commit/e1d60e0fe120a7898527fb997aa2fb9de263190c))
 
 ### Fixed
 - Reverted "Allow passing a `Closure` to `View::share()` [#15312](https://github.com/laravel/framework/pull/15312)" ([#15312](https://github.com/laravel/framework/pull/15312))
