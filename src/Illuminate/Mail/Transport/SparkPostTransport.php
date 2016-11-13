@@ -72,6 +72,8 @@ class SparkPostTransport extends Transport
 
         $this->client->post('https://api.sparkpost.com/api/v1/transmissions', $options);
 
+        $this->sendPerformed($message);
+
         return $this->numberOfRecipients($message);
     }
 
@@ -143,7 +145,7 @@ class SparkPostTransport extends Transport
      * @param  array  $options
      * @return array
      */
-    public function setOptions($options)
+    public function setOptions(array $options)
     {
         return $this->options = $options;
     }

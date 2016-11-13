@@ -685,16 +685,39 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('select * from "users" limit 10 offset 5', $builder->toSql());
 
         $builder = $this->getBuilder();
-        $builder->select('*')->from('users')->skip(-5)->take(10);
-        $this->assertEquals('select * from "users" limit 10 offset 0', $builder->toSql());
+        $builder->select('*')->from('users')->skip(0)->take(0);
+        $this->assertEquals('select * from "users" limit 0 offset 0', $builder->toSql());
 
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->skip(-5)->take(-10);
+        $this->assertEquals('select * from "users" offset 0', $builder->toSql());
+    }
+
+    public function testForPage()
+    {
         $builder = $this->getBuilder();
         $builder->select('*')->from('users')->forPage(2, 15);
         $this->assertEquals('select * from "users" limit 15 offset 15', $builder->toSql());
 
         $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->forPage(0, 15);
+        $this->assertEquals('select * from "users" limit 15 offset 0', $builder->toSql());
+
+        $builder = $this->getBuilder();
         $builder->select('*')->from('users')->forPage(-2, 15);
         $this->assertEquals('select * from "users" limit 15 offset 0', $builder->toSql());
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->forPage(2, 0);
+        $this->assertEquals('select * from "users" limit 0 offset 0', $builder->toSql());
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->forPage(0, 0);
+        $this->assertEquals('select * from "users" limit 0 offset 0', $builder->toSql());
+
+        $builder = $this->getBuilder();
+        $builder->select('*')->from('users')->forPage(-2, 0);
+        $this->assertEquals('select * from "users" limit 0 offset 0', $builder->toSql());
     }
 
     public function testGetCountForPaginationWithBindings()
@@ -1408,7 +1431,7 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->sku', '=', 'foo-bar');
-        $this->assertEquals('select * from `users` where `items`->"$.sku" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."sku"\' = ?', $builder->toSql());
         $this->assertCount(1, $builder->getRawBindings()['where']);
         $this->assertEquals('foo-bar', $builder->getRawBindings()['where'][0]);
     }
@@ -1417,28 +1440,28 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
     {
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->price', '=', 1);
-        $this->assertEquals('select * from `users` where `items`->"$.price" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."price"\' = ?', $builder->toSql());
     }
 
     public function testMySqlWrappingJsonWithDouble()
     {
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->price', '=', 1.5);
-        $this->assertEquals('select * from `users` where `items`->"$.price" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."price"\' = ?', $builder->toSql());
     }
 
     public function testMySqlWrappingJsonWithBoolean()
     {
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->available', '=', true);
-        $this->assertEquals('select * from `users` where `items`->"$.available" = true', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."available"\' = true', $builder->toSql());
     }
 
     public function testMySqlWrappingJsonWithBooleanAndIntegerThatLooksLikeOne()
     {
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->available', '=', true)->where('items->active', '=', false)->where('items->number_available', '=', 0);
-        $this->assertEquals('select * from `users` where `items`->"$.available" = true and `items`->"$.active" = false and `items`->"$.number_available" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."available"\' = true and `items`->\'$."active"\' = false and `items`->\'$."number_available"\' = ?', $builder->toSql());
     }
 
     public function testMySqlWrappingJson()
@@ -1449,15 +1472,15 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
 
         $builder = $this->getMySqlBuilder();
         $builder->select('items->price')->from('users')->where('items->price', '=', 1)->orderBy('items->price');
-        $this->assertEquals('select `items`->"$.price" from `users` where `items`->"$.price" = ? order by `items`->"$.price" asc', $builder->toSql());
+        $this->assertEquals('select `items`->\'$."price"\' from `users` where `items`->\'$."price"\' = ? order by `items`->\'$."price"\' asc', $builder->toSql());
 
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->price->in_usd', '=', 1);
-        $this->assertEquals('select * from `users` where `items`->"$.price.in_usd" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."price"."in_usd"\' = ?', $builder->toSql());
 
         $builder = $this->getMySqlBuilder();
         $builder->select('*')->from('users')->where('items->price->in_usd', '=', 1)->where('items->age', '=', 2);
-        $this->assertEquals('select * from `users` where `items`->"$.price.in_usd" = ? and `items`->"$.age" = ?', $builder->toSql());
+        $this->assertEquals('select * from `users` where `items`->\'$."price"."in_usd"\' = ? and `items`->\'$."age"\' = ?', $builder->toSql());
     }
 
     public function testPostgresWrappingJson()
@@ -1799,6 +1822,21 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         });
     }
 
+    public function testChunkWithCountZero()
+    {
+        $builder = $this->getMockQueryBuilder();
+        $chunk = collect([]);
+        $builder->shouldReceive('forPage')->once()->with(1, 0)->andReturnSelf();
+        $builder->shouldReceive('get')->times(1)->andReturn($chunk);
+
+        $callbackAssertor = m::mock('StdClass');
+        $callbackAssertor->shouldReceive('doSomething')->never();
+
+        $builder->chunk(0, function ($results) use ($callbackAssertor) {
+            $callbackAssertor->doSomething($results);
+        });
+    }
+
     public function testChunkPaginatesUsingIdWithLastChunkComplete()
     {
         $builder = $this->getMockQueryBuilder();
@@ -1834,6 +1872,21 @@ class DatabaseQueryBuilderTest extends PHPUnit_Framework_TestCase
         $callbackAssertor->shouldReceive('doSomething')->once()->with($chunk2);
 
         $builder->chunkById(2, function ($results) use ($callbackAssertor) {
+            $callbackAssertor->doSomething($results);
+        }, 'someIdField');
+    }
+
+    public function testChunkPaginatesUsingIdWithCountZero()
+    {
+        $builder = $this->getMockQueryBuilder();
+        $chunk = collect([]);
+        $builder->shouldReceive('forPageAfterId')->once()->with(0, 0, 'someIdField')->andReturnSelf();
+        $builder->shouldReceive('get')->times(1)->andReturn($chunk);
+
+        $callbackAssertor = m::mock('StdClass');
+        $callbackAssertor->shouldReceive('doSomething')->never();
+
+        $builder->chunkById(0, function ($results) use ($callbackAssertor) {
             $callbackAssertor->doSomething($results);
         }, 'someIdField');
     }
