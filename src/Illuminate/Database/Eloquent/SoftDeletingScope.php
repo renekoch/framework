@@ -51,17 +51,11 @@ class SoftDeletingScope implements Scope
      */
     protected function getDeletedAtColumn(Builder $builder)
     {
-        /**
-         * @var Model|SoftDeletes $model
-         */
-        $model = $builder->getModel();
-
         if (count($builder->getQuery()->joins) > 0) {
-            return $model->getQualifiedDeletedAtColumn();
+            return $builder->getModel()->getQualifiedDeletedAtColumn();
         }
-        else {
-            return $model->getDeletedAtColumn();
-        }
+
+        return $builder->getModel()->getDeletedAtColumn();
     }
 
     /**

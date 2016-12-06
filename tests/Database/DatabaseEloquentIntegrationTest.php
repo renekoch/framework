@@ -41,6 +41,11 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
             $table->timestamps();
         });
 
+        $this->schema('default')->create('with_json', function ($table) {
+            $table->increments('id');
+            $table->text('json')->default(json_encode([]));
+        });
+
         $this->schema('second_connection')->create('test_items', function ($table) {
             $table->increments('id');
             $table->timestamps();
@@ -249,6 +254,75 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertNotEquals($user3->id, $user1->id);
         $this->assertEquals('abigailotwell@gmail.com', $user3->email);
         $this->assertEquals('Abigail Otwell', $user3->name);
+    }
+
+    public function testUpdateOrCreate()
+    {
+        $user1 = EloquentTestUser::create(['email' => 'taylorotwell@gmail.com']);
+
+        $user2 = EloquentTestUser::updateOrCreate(
+            ['email' => 'taylorotwell@gmail.com'],
+            ['name' => 'Taylor Otwell']
+        );
+
+        $this->assertEquals($user1->id, $user2->id);
+        $this->assertEquals('taylorotwell@gmail.com', $user2->email);
+        $this->assertEquals('Taylor Otwell', $user2->name);
+
+        $user3 = EloquentTestUser::updateOrCreate(
+            ['email' => 'themsaid@gmail.com'],
+            ['name' => 'Mohamed Said']
+        );
+
+        $this->assertEquals('Mohamed Said', $user3->name);
+        $this->assertEquals(EloquentTestUser::count(), 2);
+    }
+
+    public function testUpdateOrCreateOnDifferentConnection()
+    {
+        EloquentTestUser::create(['email' => 'taylorotwell@gmail.com']);
+
+        EloquentTestUser::on('second_connection')->updateOrCreate(
+            ['email' => 'taylorotwell@gmail.com'],
+            ['name' => 'Taylor Otwell']
+        );
+
+        EloquentTestUser::on('second_connection')->updateOrCreate(
+            ['email' => 'themsaid@gmail.com'],
+            ['name' => 'Mohamed Said']
+        );
+
+        $this->assertEquals(EloquentTestUser::count(), 1);
+        $this->assertEquals(EloquentTestUser::on('second_connection')->count(), 2);
+    }
+
+    public function testCheckAndCreateMethodsOnMultiConnections()
+    {
+        EloquentTestUser::create(['id' => 1, 'email' => 'taylorotwell@gmail.com']);
+        EloquentTestUser::on('second_connection')->find(
+            EloquentTestUser::on('second_connection')->insert(['id' => 2, 'email' => 'themsaid@gmail.com'])
+        );
+
+        $user1 = EloquentTestUser::on('second_connection')->findOrNew(1);
+        $user2 = EloquentTestUser::on('second_connection')->findOrNew(2);
+        $this->assertFalse($user1->exists);
+        $this->assertTrue($user2->exists);
+        $this->assertEquals('second_connection', $user1->getConnectionName());
+        $this->assertEquals('second_connection', $user2->getConnectionName());
+
+        $user1 = EloquentTestUser::on('second_connection')->firstOrNew(['email' => 'taylorotwell@gmail.com']);
+        $user2 = EloquentTestUser::on('second_connection')->firstOrNew(['email' => 'themsaid@gmail.com']);
+        $this->assertFalse($user1->exists);
+        $this->assertTrue($user2->exists);
+        $this->assertEquals('second_connection', $user1->getConnectionName());
+        $this->assertEquals('second_connection', $user2->getConnectionName());
+
+        $this->assertEquals(1, EloquentTestUser::on('second_connection')->count());
+        $user1 = EloquentTestUser::on('second_connection')->firstOrCreate(['email' => 'taylorotwell@gmail.com']);
+        $user2 = EloquentTestUser::on('second_connection')->firstOrCreate(['email' => 'themsaid@gmail.com']);
+        $this->assertEquals('second_connection', $user1->getConnectionName());
+        $this->assertEquals('second_connection', $user2->getConnectionName());
+        $this->assertEquals(2, EloquentTestUser::on('second_connection')->count());
     }
 
     public function testPluck()
@@ -739,6 +813,22 @@ class DatabaseEloquentIntegrationTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(1, EloquentTestPost::count());
     }
 
+    public function testSavingJSONFields()
+    {
+        $model = EloquentTestWithJSON::create(['json' => ['x' => 0]]);
+        $this->assertEquals(['x' => 0], $model->json);
+
+        $model->fillable(['json->y', 'json->a->b']);
+
+        $model->update(['json->y' => '1']);
+        $this->assertArrayNotHasKey('json->y', $model->toArray());
+        $this->assertEquals(['x' => 0, 'y' => 1], $model->json);
+
+        $model->update(['json->a->b' => '3']);
+        $this->assertArrayNotHasKey('json->a->b', $model->toArray());
+        $this->assertEquals(['x' => 0, 'y' => 1, 'a' => ['b' => 3]], $model->json);
+    }
+
     /**
      * @expectedException Exception
      */
@@ -1081,4 +1171,14 @@ class EloquentTestItem extends Eloquent
     protected $guarded = [];
     protected $table = 'test_items';
     protected $connection = 'second_connection';
+}
+
+class EloquentTestWithJSON extends Eloquent
+{
+    protected $guarded = [];
+    protected $table = 'with_json';
+    public $timestamps = false;
+    protected $casts = [
+        'json' => 'array',
+    ];
 }
