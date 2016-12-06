@@ -1,5 +1,53 @@
 # Release Notes for 5.3.x
 
+## v5.3.18 (2016-10-07)
+
+### Added
+- Added object based `unique` and `exists` validation rules ([#15809](https://github.com/laravel/framework/pull/15809))
+
+### Changed
+- Added primary key to `migrations` table ([#15770](https://github.com/laravel/framework/pull/15770))
+- Simplified `route:list` command code ([#15802](https://github.com/laravel/framework/pull/15802), [cb2eb79](https://github.com/laravel/framework/commit/cb2eb7963b29aafe63c87e1d2b1e633ecd0c25b0))
+
+### Fixed
+- Use eloquent collection for proper serialization of [#15789](https://github.com/laravel/framework/pull/15789) ([1c78e00](https://github.com/laravel/framework/commit/1c78e00ef3815e7b0bf710037b52faefb464e97d))
+- Reverted [#15722](https://github.com/laravel/framework/pull/15722) ([#15813](https://github.com/laravel/framework/pull/15813))
+
+
+## v5.3.17 (2016-10-06)
+
+### Added
+- Added model factory "states" ([#14241](https://github.com/laravel/framework/pull/14241))
+
+### Changed
+- `Collection::only()` now returns all items if `$keys` is `null` ([#15695](https://github.com/laravel/framework/pull/15695))
+
+### Fixed
+- Added workaround for Memcached 3 on PHP7 when using `many()` ([#15739](https://github.com/laravel/framework/pull/15739))
+- Fixed bug in `Validator::hydrateFiles()` when removing the files array ([#15663](https://github.com/laravel/framework/pull/15663))
+- Fixed model factory bug when `$amount` is zero ([#15764](https://github.com/laravel/framework/pull/15764), [#15779](https://github.com/laravel/framework/pull/15779))
+- Prevent multiple notifications getting sent out when using the `Notification` facade ([#15789](https://github.com/laravel/framework/pull/15789))
+
+
+## v5.3.16 (2016-10-04)
+
+### Added
+- Added "furniture" and "wheat" to `Pluralizer::uncountable()` ([#15703](https://github.com/laravel/framework/pull/15703))
+- Allow passing `$keys` to `Model::getAttributes()` ([#15722](https://github.com/laravel/framework/pull/15722))
+- Added database blueprint for soft deletes with timezone ([#15737](https://github.com/laravel/framework/pull/15737))
+- Added given guards to `AuthenticationException` ([#15745](https://github.com/laravel/framework/pull/15745))
+- Added [Seneca](https://en.wikipedia.org/wiki/Seneca_the_Younger) quote to `Inspire` command ([#15747](https://github.com/laravel/framework/pull/15747))
+- Added `div#app` to auth layout stub ([08bcbdb](https://github.com/laravel/framework/commit/08bcbdbe70b69330943cc45625b160877b37341a))
+- Added PHP 7.1 timeout handler to queue worker ([cc9e1f0](https://github.com/laravel/framework/commit/cc9e1f09683fd23cf8e973e84bf310f7ce1304a2))
+
+### Changed
+- Changed visibility of `Route::getController()` to public ([#15678](https://github.com/laravel/framework/pull/15678))
+- Changed notifications `id` column type to `uuid` ([#15719](https://github.com/laravel/framework/pull/15719))
+
+### Fixed
+- Fixed PDO bindings when using `whereHas()` ([#15740](https://github.com/laravel/framework/pull/15740))
+
+
 ## v5.3.15 (2016-09-29)
 
 ### Changed

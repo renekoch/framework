@@ -237,7 +237,7 @@ class Builder
             return $result;
         }
 
-        throw (new ModelNotFoundException)->setModel(get_class($this->model));
+        throw (new ModelNotFoundException)->setModel(get_class($this->model), $id);
     }
 
     /**
@@ -789,7 +789,7 @@ class Builder
     /**
      * Add a basic where clause to the query.
      *
-     * @param  string  $column
+     * @param  string|\Closure  $column
      * @param  string  $operator
      * @param  mixed   $value
      * @param  string  $boolean
@@ -813,7 +813,7 @@ class Builder
     /**
      * Add an "or where" clause to the query.
      *
-     * @param  string  $column
+     * @param  string|\Closure  $column
      * @param  string  $operator
      * @param  mixed   $value
      * @return \Illuminate\Database\Eloquent\Builder|static
@@ -1019,11 +1019,13 @@ class Builder
 
         $relationQuery = $relation->getQuery();
 
+        $whereBindings = Arr::get($relationQuery->getRawBindings(), 'where', []);
+
         // Here we have some relation query and the original relation. We need to copy over any
         // where clauses that the developer may have put in the relation definition function.
         // We need to remove any global scopes that the developer already removed as well.
         return $this->withoutGlobalScopes($removedScopes)->mergeWheres(
-            $relationQuery->wheres, $relationQuery->getBindings()
+            $relationQuery->wheres, $whereBindings
         );
     }
 

@@ -2883,6 +2883,10 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
      */
     public function getAttribute($key)
     {
+        if (! $key) {
+            return;
+        }
+
         if (array_key_exists($key, $this->attributes) || $this->hasGetMutator($key)) {
             return $this->getAttributeValue($key);
         }
@@ -3360,31 +3364,13 @@ abstract class Model implements ArrayAccess, Arrayable, Jsonable, JsonSerializab
     }
 
     /**
-     * Get a selection of the current attributes on the model.
-     *
-     * @param array $keys
+     * Get all of the current attributes on the model.
      *
      * @return array
      */
-    public function getAttributes($keys = [])
+    public function getAttributes()
     {
-        if ($keys === []) {
-            return $this->attributes;
-        }
-
-        $keys = is_array($keys) ? $keys : func_get_args();
-
-        $result = [];
-
-        foreach ($keys as $key) {
-            $value = $this->getAttribute($key);
-
-            if (! is_null($value)) {
-                $result[$key] = $value;
-            }
-        }
-
-        return $result;
+        return $this->attributes;
     }
 
     /**
