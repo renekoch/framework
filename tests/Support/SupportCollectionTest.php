@@ -556,9 +556,12 @@ class SupportCollectionTest extends PHPUnit_Framework_TestCase
     public function testUniqueWithCallback()
     {
         $c = new Collection([
-            1 => ['id' => 1, 'first' => 'Taylor', 'last' => 'Otwell'], 2 => ['id' => 2, 'first' => 'Taylor', 'last' => 'Otwell'],
-            3 => ['id' => 3, 'first' => 'Abigail', 'last' => 'Otwell'], 4 => ['id' => 4, 'first' => 'Abigail', 'last' => 'Otwell'],
-            5 => ['id' => 5, 'first' => 'Taylor', 'last' => 'Swift'], 6 => ['id' => 6, 'first' => 'Taylor', 'last' => 'Swift'],
+            1 => ['id' => 1, 'first' => 'Taylor', 'last' => 'Otwell'],
+            2 => ['id' => 2, 'first' => 'Taylor', 'last' => 'Otwell'],
+            3 => ['id' => 3, 'first' => 'Abigail', 'last' => 'Otwell'],
+            4 => ['id' => 4, 'first' => 'Abigail', 'last' => 'Otwell'],
+            5 => ['id' => 5, 'first' => 'Taylor', 'last' => 'Swift'],
+            6 => ['id' => 6, 'first' => 'Taylor', 'last' => 'Swift'],
         ]);
 
         $this->assertEquals([
@@ -572,6 +575,13 @@ class SupportCollectionTest extends PHPUnit_Framework_TestCase
             5 => ['id' => 5, 'first' => 'Taylor', 'last' => 'Swift'],
         ], $c->unique(function ($item) {
             return $item['first'].$item['last'];
+        })->all());
+
+        $this->assertEquals([
+            1 => ['id' => 1, 'first' => 'Taylor', 'last' => 'Otwell'],
+            2 => ['id' => 2, 'first' => 'Taylor', 'last' => 'Otwell'],
+        ], $c->unique(function ($item, $key) {
+            return $key % 2;
         })->all());
     }
 
@@ -1373,6 +1383,12 @@ class SupportCollectionTest extends PHPUnit_Framework_TestCase
 
         $c = new Collection([1, 2, 3, 4, 5]);
         $this->assertEquals(1, $c->min());
+
+        $c = new Collection([1, null, 3, 4, 5]);
+        $this->assertEquals(1, $c->min());
+
+        $c = new Collection([0, 1, 2, 3, 4]);
+        $this->assertEquals(0, $c->min());
 
         $c = new Collection();
         $this->assertNull($c->min());
