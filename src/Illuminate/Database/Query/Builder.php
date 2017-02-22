@@ -923,7 +923,7 @@ class Builder
             return $this->whereRaw('?', [$not ? 0 : 1], $boolean);
         }
         elseif(count($values) == 1){
-            $this->where($column, $not ? '=': '!=', head($values), $boolean);
+            $this->where($column, $not ? '!=': '=', head($values), $boolean);
         }
         else {
             $this->wheres[] = compact('type', 'column', 'values', 'boolean');
