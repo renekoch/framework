@@ -1038,6 +1038,9 @@ class Builder
         if ($keyList instanceof Collection){
             $keyList = $keyList->all();
         }
+        elseif ($keyList instanceof Arrayable) {
+            $keyList = $keyList->toArray();
+        }
 
         //no $keyList should find no rows
         if (!count($keyList)){

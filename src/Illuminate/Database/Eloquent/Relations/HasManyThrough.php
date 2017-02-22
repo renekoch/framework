@@ -8,7 +8,7 @@ use Illuminate\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use \Illuminate\Database\Query\JoinClause;
+use Illuminate\Database\Query\JoinClause;
 
 class HasManyThrough extends Relation
 {
