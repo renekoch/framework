@@ -1063,11 +1063,11 @@ class Builder
              */
             foreach ($keyList as $values) {
 
-                $fn = function ($query) use ($fields, $values, $not) {
+                $fn = function ($query) use ($keys, $values, $not) {
                     /**
                      * @var  Builder $query
                      */
-                    foreach ($fields as $key => $field) {
+                    foreach ($keys as $key => $field) {
 
                         if (is_numeric($key)) {
                             $key = $field;
