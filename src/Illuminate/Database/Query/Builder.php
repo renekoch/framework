@@ -1476,12 +1476,17 @@ class Builder
     /**
      * Add an "order by" clause to the query.
      *
-     * @param  string  $column
-     * @param  string  $direction
+     * @param  string        $column
+     * @param  string|array  $direction
+     * @param  boolean       $prepend
      * @return $this
      */
     public function orderBy($column, $direction = 'asc', $prepend = false)
     {
+        if (is_array($direction) ){
+            return count($direction) ? $this->orderByRaw("FIELD(`$column`" . str_repeat(', ?', count($direction)) . ') desc', array_reverse($direction)) : $this;
+        }
+
         $type      = $this->unions ? 'unionOrders' : 'orders';
         $direction = strtolower($direction) == 'asc' ? 'asc' : 'desc';
         $columns   = (array)$column;
