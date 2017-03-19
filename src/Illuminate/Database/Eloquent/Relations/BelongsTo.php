@@ -280,7 +280,7 @@ class BelongsTo extends Relation
      */
     public function dissociate()
     {
-        foreach($this->constraintKeys as $otherKey => $foreignKey) {
+        foreach($this->constraintKeys as  $foreignKey => $otherKey) {
             $this->parent->setAttribute($foreignKey, null);
         }
 
