@@ -261,7 +261,7 @@ class BelongsTo extends Relation
      */
     public function associate($model)
     {
-        foreach($this->constraintKeys as $otherKey => $foreignKey) {
+        foreach($this->constraintKeys as  $foreignKey => $otherKey) {
             $otherKey = ($model instanceof Model ? $model->getAttribute($otherKey) : $model);
             $this->parent->setAttribute($foreignKey, $otherKey);
         }

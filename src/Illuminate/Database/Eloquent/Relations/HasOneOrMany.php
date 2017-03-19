@@ -10,21 +10,6 @@ use Illuminate\Database\Eloquent\Collection;
 abstract class HasOneOrMany extends Relation
 {
     /**
-     * The foreign key of the parent model.
-     *
-     * @var string
-     */
-    protected $foreignKey;
-
-    /**
-     * The local key of the parent model.
-     *
-     * @var string
-     */
-    protected $localKey;
-
-
-    /**
      * keys for contrraints.
      *
      * @var string[]
