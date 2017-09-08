@@ -351,7 +351,7 @@ class Builder
         else {
 
             //take into account
-            $constraints = is_array($one) ? $one : [$one, $operator, $two];
+            $constraints = is_array($one) ? $one : [[$one, $operator, $two]];
 
             $method = $where ? 'where' : 'on';
 
