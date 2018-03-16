@@ -1080,7 +1080,7 @@ class Builder
                     }
                 };
 
-                $query->where($fn, null, null, $not ? 'or' : 'and');
+                $query->where($fn, null, null, $not ? 'and' : 'or');
             }
         };
 
