@@ -203,7 +203,7 @@ class Builder
         $result = $this->find($id, $columns);
 
         if (is_array($id)) {
-            if (count($result) == count(array_unique($id))) {
+            if (count($result ?:[]) == count(array_unique($id))) {
                 return $result;
             }
         } elseif (! is_null($result)) {
@@ -329,7 +329,7 @@ class Builder
         // If we actually found models we will also eager load any relationships that
         // have been specified as needing to be eager loaded, which will solve the
         // n+1 query issue for the developers to avoid running a lot of queries.
-        if (count($models) > 0) {
+        if (count($models?:[]) > 0) {
             $models = $builder->eagerLoadRelations($models);
         }
 
@@ -715,7 +715,7 @@ class Builder
         // If there are nested relationships set on the query, we will put those onto
         // the query instances so that they can be handled after this relationship
         // is loaded. In this way they will all trickle down as they are loaded.
-        if (count($nested) > 0) {
+        if (count($nested?:[]) > 0) {
             $relation->getQuery()->with($nested);
         }
 
@@ -1228,7 +1228,7 @@ class Builder
         // We will keep track of how many wheres are on the query before running the
         // scope so that we can properly group the added scope constraints in the
         // query as their own isolated nested where statement and avoid issues.
-        $originalWhereCount = count($query->wheres);
+        $originalWhereCount = count($query->wheres?:[]);
 
         $result = $scope(...array_values($parameters)) ?: $this;
 
@@ -1274,7 +1274,7 @@ class Builder
      */
     protected function shouldNestWheresForScope(QueryBuilder $query, $originalWhereCount)
     {
-        return count($query->wheres) > $originalWhereCount;
+        return count($query->wheres?:[]) > $originalWhereCount;
     }
 
     /**
