@@ -164,7 +164,7 @@ class Builder
     public function find($id, $columns = ['*'])
     {
         // Check for composite keys
-        $keys = $this->model->getQualifiedKeyNames();
+        $keys = $this->model->getQualifiedKeyNames()?:[];
 
         if (1 < count($keys)) {
             //convert string to keyset
@@ -203,7 +203,7 @@ class Builder
         }
 
         // Check for composite keys
-        $keys = $this->model->getQualifiedKeyNames();
+        $keys = $this->model->getQualifiedKeyNames()?:[];
         if (1 < count($keys)){
             //convert string to keyset
             $fn = function($id){
@@ -232,7 +232,7 @@ class Builder
         $result = $this->find($id, $columns);
 
         if ($result instanceof Collection) {
-            if (count($result) == count($id)) {
+            if (count($result) == count($id?:[])) {
                 return $result;
             }
         }
@@ -354,7 +354,7 @@ class Builder
     {
         $builder = $this->applyScopes();
 
-        $models = $builder->getModels($columns);
+        $models = $builder->getModels($columns)?:[];
 
         // If we actually found models we will also eager load any relationships that
         // have been specified as needing to be eager loaded, which will solve the
@@ -740,7 +740,7 @@ class Builder
             }
         });
 
-        $nested = $this->nestedRelations($name);
+        $nested = $this->nestedRelations($name)?:[];
 
         // If there are nested relationships set on the query, we will put those onto
         // the query instances so that they can be handled after this relationship
@@ -1256,7 +1256,7 @@ class Builder
         // We will keep track of how many wheres are on the query before running the
         // scope so that we can properly group the added scope constraints in the
         // query as their own isolated nested where statement and avoid issues.
-        $originalWhereCount = count($query->wheres);
+        $originalWhereCount = count($query->wheres?:[]);
 
         $result = call_user_func_array($scope, $parameters) ?: $this;
 
@@ -1302,7 +1302,7 @@ class Builder
      */
     protected function shouldNestWheresForScope(QueryBuilder $query, $originalWhereCount)
     {
-        return count($query->wheres) > $originalWhereCount;
+        return count($query->wheres?:[]) > $originalWhereCount;
     }
 
     /**
